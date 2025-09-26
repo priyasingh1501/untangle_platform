@@ -1,0 +1,96 @@
+{
+  "traditional_units": {
+    "katori": {
+      "name": "Katori (Bowl)",
+      "description": "Traditional Indian bowl measurement",
+      "grams": 80,
+      "volume_ml": 100,
+      "common_foods": ["dal", "curry", "sabzi", "rice", "pulao"],
+      "variations": {
+        "small": 60,
+        "medium": 80,
+        "large": 120
+      }
+    },
+    "spoon": {
+      "name": "Spoon",
+      "description": "Traditional Indian spoon measurement",
+      "grams": 15,
+      "volume_ml": 20,
+      "common_foods": ["ghee", "oil", "curd", "pickle", "chutney"],
+      "variations": {
+        "teaspoon": 5,
+        "dessertspoon": 10,
+        "tablespoon": 15,
+        "serving_spoon": 25
+      }
+    },
+    "roti": {
+      "name": "Roti (Flatbread)",
+      "description": "Standard roti size",
+      "grams": 45,
+      "diameter_cm": 15,
+      "common_foods": ["roti", "chapati", "phulka"],
+      "variations": {
+        "small": 35,
+        "medium": 45,
+        "large": 60
+      }
+    },
+    "idli": {
+      "name": "Idli",
+      "description": "Standard idli size",
+      "grams": 120,
+      "diameter_cm": 8,
+      "common_foods": ["idli", "steamed_cakes"],
+      "variations": {
+        "mini": 80,
+        "standard": 120,
+        "large": 180
+      }
+    },
+    "cup": {
+      "name": "Cup",
+      "description": "Standard cup measurement",
+      "grams": 200,
+      "volume_ml": 250,
+      "common_foods": ["milk", "tea", "coffee", "soup"],
+      "variations": {
+        "small": 150,
+        "standard": 200,
+        "large": 250
+      }
+    },
+    "handful": {
+      "name": "Handful",
+      "description": "Handful measurement",
+      "grams": 30,
+      "common_foods": ["nuts", "dry_fruits", "snacks"],
+      "variations": {
+        "small": 20,
+        "medium": 30,
+        "large": 45
+      }
+    }
+  },
+  "conversion_factors": {
+    "katori_to_grams": 80,
+    "spoon_to_grams": 15,
+    "roti_to_grams": 45,
+    "idli_to_grams": 120,
+    "cup_to_grams": 200,
+    "handful_to_grams": 30
+  },
+  "default_units_by_food_type": {
+    "dal": ["katori", "cup"],
+    "curry": ["katori", "cup"],
+    "rice": ["katori", "cup"],
+    "roti": ["roti", "piece"],
+    "idli": ["idli", "piece"],
+    "milk": ["cup", "glass"],
+    "ghee": ["spoon", "teaspoon"],
+    "curd": ["katori", "cup"],
+    "nuts": ["handful", "spoon"],
+    "fruits": ["piece", "cup"]
+  }
+}

@@ -1,0 +1,22 @@
+[
+  {"pattern": "instant noodles", "nova": 4},
+  {"pattern": "biscuit", "nova": 4},
+  {"pattern": "chips", "nova": 4},
+  {"pattern": "soda", "nova": 4},
+  {"pattern": "parle-g", "nova": 4},
+  {"pattern": "idli", "nova": 3},
+  {"pattern": "dosa", "nova": 3},
+  {"pattern": "chapati", "nova": 3},
+  {"pattern": "roti", "nova": 3},
+  {"pattern": "curd", "nova": 3},
+  {"pattern": "raita", "nova": 3},
+  {"pattern": "paneer", "nova": 3},
+  {"pattern": "oil", "nova": 2},
+  {"pattern": "ghee", "nova": 2},
+  {"pattern": "rice", "nova": 1},
+  {"pattern": "dal", "nova": 1},
+  {"pattern": "sambar", "nova": 1},
+  {"pattern": "salad", "nova": 1},
+  {"pattern": "fruit", "nova": 1},
+  {"pattern": "vegetable", "nova": 1}
+]

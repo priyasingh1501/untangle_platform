@@ -1,0 +1,8 @@
+{
+  "roti": ["chapati", "chapathi", "phulka"],
+  "curd": ["dahi", "yogurt", "yoghurt"],
+  "kidney beans": ["rajma"],
+  "chickpeas": ["chole", "chana"],
+  "semolina": ["sooji", "rava", "suji"],
+  "flattened rice": ["poha", "aval", "chivda (plain)"]
+}
