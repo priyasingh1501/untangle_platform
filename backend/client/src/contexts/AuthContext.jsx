@@ -35,6 +35,7 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     setToken(null);
     localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
     delete axios.defaults.headers.common['Authorization'];
     toast.success('Logged out successfully');
   }, []);
@@ -53,12 +54,17 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await axios.post(buildApiUrl('/api/auth/login'), { email, password });
       
-      const { token: newToken, user: userData } = response.data;
+      const { token: newToken, user: userData, tokens } = response.data;
+      const accessToken = newToken || tokens?.accessToken || tokens?.token;
+      const refreshToken = tokens?.refreshToken;
       
-      setToken(newToken);
+      setToken(accessToken);
       setUser(userData);
-      localStorage.setItem('token', newToken);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+      localStorage.setItem('token', accessToken);
+      if (refreshToken) {
+        localStorage.setItem('refreshToken', refreshToken);
+      }
+      axios.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
       
       toast.success('Login successful!');
       return { success: true };
@@ -73,12 +79,17 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await axios.post(buildApiUrl('/api/auth/register'), userData);
       
-      const { token: newToken, user: newUser } = response.data;
+      const { token: newToken, user: newUser, tokens } = response.data;
+      const accessToken = newToken || tokens?.accessToken || tokens?.token;
+      const refreshToken = tokens?.refreshToken;
       
-      setToken(newToken);
+      setToken(accessToken);
       setUser(newUser);
-      localStorage.setItem('token', newToken);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+      localStorage.setItem('token', accessToken);
+      if (refreshToken) {
+        localStorage.setItem('refreshToken', refreshToken);
+      }
+      axios.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
       
       toast.success('Registration successful!');
       return { success: true };
@@ -117,11 +128,25 @@ export const AuthProvider = ({ children }) => {
 
   const refreshToken = async () => {
     try {
-      const response = await axios.post(buildApiUrl('/api/auth/refresh-token'));
-      const { token: newToken } = response.data;
+      const storedRefreshToken = localStorage.getItem('refreshToken');
+      if (!storedRefreshToken) {
+        logout();
+        return { success: false };
+      }
+
+      const response = await axios.post(buildApiUrl('/api/auth/refresh'), {
+        refreshToken: storedRefreshToken
+      });
+      
+      const { tokens } = response.data;
+      const newToken = tokens.accessToken || tokens.token;
+      const newRefreshToken = tokens.refreshToken;
       
       setToken(newToken);
       localStorage.setItem('token', newToken);
+      if (newRefreshToken) {
+        localStorage.setItem('refreshToken', newRefreshToken);
+      }
       axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
       
       return { success: true };
@@ -141,9 +166,10 @@ export const AuthProvider = ({ children }) => {
           // Token expired, try to refresh
           const refreshResult = await refreshToken();
           if (refreshResult.success) {
-            // Retry the original request
+            // Retry the original request with the new token
             const originalRequest = error.config;
-            originalRequest.headers['Authorization'] = `Bearer ${token}`;
+            const newToken = localStorage.getItem('token');
+            originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
             return axios(originalRequest);
           }
         }
