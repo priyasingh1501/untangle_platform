@@ -1,257 +1,743 @@
 const express = require('express');
-const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
+const { body } = require('express-validator');
+const { validationRules, validate } = require('../middleware/validation');
+const { auth, authRateLimit, passwordResetRateLimit } = require('../middleware/auth');
+const { securityLogger } = require('../config/logger');
+const { jwtService, tokenBlacklist, sessionService } = require('../middleware/auth');
+const TwoFactorService = require('../services/twoFactorService');
+const EncryptionService = require('../services/encryptionService');
+const GDPRService = require('../services/gdprService');
 const User = require('../models/User');
+const crypto = require('crypto');
+
 const router = express.Router();
-
-// Middleware to verify JWT token
-const authenticateToken = async (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-
-  if (!token) {
-    return res.status(401).json({ message: 'Access token required' });
-  }
-
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-    const user = await User.findById(decoded.userId);
-    
-    if (!user || !user.isActive) {
-      return res.status(401).json({ message: 'Invalid or inactive user' });
-    }
-    
-    req.user = user;
-    next();
-  } catch (error) {
-    return res.status(403).json({ message: 'Invalid token' });
-  }
-};
+const twoFactorService = new TwoFactorService();
+const encryptionService = new EncryptionService();
+const gdprService = new GDPRService();
 
 // Register new user
-router.post('/register', async (req, res) => {
-  try {
-    const { email, password, firstName, lastName } = req.body;
+router.post('/register', 
+  authRateLimit,
+  validate(validationRules.userRegistration),
+  async (req, res) => {
+    try {
+      const { email, password, firstName, lastName } = req.body;
 
-    // Check if user already exists
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ message: 'User already exists with this email' });
+      // Check if user already exists
+      const existingUser = await User.findOne({ email });
+      if (existingUser) {
+        securityLogger.logSuspiciousActivity(
+          'anonymous',
+          'duplicate_registration_attempt',
+          { email },
+          req.ip
+        );
+        return res.status(409).json({ 
+          message: 'User already exists with this email',
+          code: 'USER_EXISTS'
+        });
+      }
+
+      // Create new user
+      const user = new User({
+        email,
+        password,
+        firstName,
+        lastName,
+        emailVerified: false
+      });
+
+      // Generate email verification token
+      const verificationToken = user.generateEmailVerificationToken();
+      await user.save();
+
+      // Log successful registration
+      securityLogger.logLoginAttempt(email, req.ip, true, req.get('User-Agent'));
+
+      // Generate tokens
+      const tokens = jwtService.generateTokenPair({
+        userId: user._id,
+        email: user.email,
+        role: user.role
+      });
+
+      // Create session
+      const sessionId = crypto.randomUUID();
+      user.addActiveSession(sessionId, req.get('User-Agent'), req.ip);
+      await user.save();
+
+      res.status(201).json({
+        message: 'User registered successfully',
+        user: user.getProfile(),
+        tokens,
+        sessionId,
+        requiresEmailVerification: true,
+        verificationToken // In production, send via email
+      });
+    } catch (error) {
+      console.error('Registration error:', error);
+      
+      if (error.code === 'PASSWORD_REUSE') {
+        return res.status(400).json({
+          message: 'Cannot reuse recent passwords',
+          code: 'PASSWORD_REUSE'
+        });
+      }
+
+      securityLogger.logSuspiciousActivity(
+        'anonymous',
+        'registration_error',
+        { error: error.message, email: req.body.email },
+        req.ip
+      );
+
+      res.status(500).json({ 
+        message: 'Registration failed',
+        code: 'REGISTRATION_FAILED'
+      });
     }
-
-    // Create new user
-    const user = new User({
-      email,
-      password,
-      firstName,
-      lastName
-    });
-
-    await user.save();
-
-    // Generate JWT token
-    const token = jwt.sign(
-      { userId: user._id },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '7d' }
-    );
-
-    res.status(201).json({
-      message: 'User created successfully',
-      token,
-      user: user.getProfile()
-    });
-  } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({ message: 'Error creating user', error: error.message });
   }
-});
+);
 
 // Login user
-router.post('/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
+router.post('/login',
+  authRateLimit,
+  validate(validationRules.userLogin),
+  async (req, res) => {
+    try {
+      const { email, password, rememberMe } = req.body;
 
-    // Find user by email
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+      // Find user by email
+      const user = await User.findOne({ email });
+      if (!user) {
+        securityLogger.logFailedLogin(email, req.ip, 'User not found', req.get('User-Agent'));
+        return res.status(401).json({ 
+          message: 'Invalid credentials',
+          code: 'INVALID_CREDENTIALS'
+        });
+      }
+
+      // Check if account is locked
+      if (user.isAccountLocked()) {
+        securityLogger.logAccountLockout(email, req.ip, 'Account locked');
+        return res.status(423).json({ 
+          message: 'Account is temporarily locked',
+          code: 'ACCOUNT_LOCKED',
+          lockedUntil: user.lockedUntil
+        });
+      }
+
+      // Check if user is active
+      if (!user.isActive) {
+        securityLogger.logFailedLogin(email, req.ip, 'Account inactive', req.get('User-Agent'));
+        return res.status(401).json({ 
+          message: 'Account is deactivated',
+          code: 'ACCOUNT_INACTIVE'
+        });
+      }
+
+      // Verify password
+      const isValidPassword = await user.comparePassword(password);
+      if (!isValidPassword) {
+        user.incrementLoginAttempts();
+        user.addFailedLoginAttempt(req.ip, req.get('User-Agent'));
+        await user.save();
+
+        securityLogger.logFailedLogin(email, req.ip, 'Invalid password', req.get('User-Agent'));
+        return res.status(401).json({ 
+          message: 'Invalid credentials',
+          code: 'INVALID_CREDENTIALS'
+        });
+      }
+
+      // Reset login attempts on successful login
+      user.resetLoginAttempts();
+      user.lastLogin = new Date();
+      await user.save();
+
+      // Check if 2FA is required
+      if (user.twoFactorEnabled) {
+        // Generate temporary token for 2FA verification
+        const tempToken = jwtService.generateAccessToken({
+          userId: user._id,
+          email: user.email,
+          requires2FA: true
+        });
+
+        return res.status(200).json({
+          message: '2FA required',
+          code: '2FA_REQUIRED',
+          tempToken,
+          requires2FA: true
+        });
+      }
+
+      // Generate tokens
+      const tokens = jwtService.generateTokenPair({
+        userId: user._id,
+        email: user.email,
+        role: user.role
+      });
+
+      // Create session
+      const sessionId = crypto.randomUUID();
+      user.addActiveSession(sessionId, req.get('User-Agent'), req.ip);
+      await user.save();
+
+      securityLogger.logLoginAttempt(email, req.ip, true, req.get('User-Agent'));
+
+      res.json({
+        message: 'Login successful',
+        user: user.getProfile(),
+        tokens,
+        sessionId
+      });
+    } catch (error) {
+      console.error('Login error:', error);
+      securityLogger.logSuspiciousActivity(
+        'anonymous',
+        'login_error',
+        { error: error.message, email: req.body.email },
+        req.ip
+      );
+      res.status(500).json({ 
+        message: 'Login failed',
+        code: 'LOGIN_FAILED'
+      });
     }
-
-    // Check if user is active
-    if (!user.isActive) {
-      return res.status(401).json({ message: 'Account is deactivated' });
-    }
-
-    // Verify password
-    const isValidPassword = await user.comparePassword(password);
-    if (!isValidPassword) {
-      return res.status(401).json({ message: 'Invalid credentials' });
-    }
-
-    // Update last login without triggering full validation on legacy users
-    await User.findByIdAndUpdate(user._id, { lastLogin: new Date() });
-
-    // Generate JWT token
-    const token = jwt.sign(
-      { userId: user._id },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '7d' }
-    );
-
-    res.json({
-      message: 'Login successful',
-      token,
-      user: user.getProfile()
-    });
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ message: 'Error during login', error: error.message });
   }
-});
+);
+
+// Verify 2FA
+router.post('/verify-2fa',
+  authRateLimit,
+  async (req, res) => {
+    try {
+      const { token, tempToken } = req.body;
+
+      if (!tempToken) {
+        return res.status(400).json({
+          message: 'Temporary token required',
+          code: 'TEMP_TOKEN_REQUIRED'
+        });
+      }
+
+      // Verify temp token
+      const decoded = jwtService.verifyAccessToken(tempToken);
+      if (!decoded.requires2FA) {
+        return res.status(400).json({
+          message: 'Invalid temporary token',
+          code: 'INVALID_TEMP_TOKEN'
+        });
+      }
+
+      const user = await User.findById(decoded.userId);
+      if (!user || !user.twoFactorEnabled) {
+        return res.status(400).json({
+          message: '2FA not enabled for this user',
+          code: '2FA_NOT_ENABLED'
+        });
+      }
+
+      // Verify 2FA token
+      const verification = await twoFactorService.verify2FALogin(
+        user, 
+        token, 
+        req.ip, 
+        req.get('User-Agent')
+      );
+
+      if (!verification.verified) {
+        return res.status(401).json({
+          message: verification.message,
+          code: '2FA_VERIFICATION_FAILED'
+        });
+      }
+
+      // Generate final tokens
+      const tokens = jwtService.generateTokenPair({
+        userId: user._id,
+        email: user.email,
+        role: user.role
+      });
+
+      // Create session
+      const sessionId = crypto.randomUUID();
+      user.addActiveSession(sessionId, req.get('User-Agent'), req.ip);
+      await user.save();
+
+      securityLogger.logLoginAttempt(user.email, req.ip, true, req.get('User-Agent'));
+
+      res.json({
+        message: '2FA verification successful',
+        user: user.getProfile(),
+        tokens,
+        sessionId
+      });
+    } catch (error) {
+      console.error('2FA verification error:', error);
+      res.status(500).json({
+        message: '2FA verification failed',
+        code: '2FA_VERIFICATION_FAILED'
+      });
+    }
+  }
+);
+
+// Refresh token
+router.post('/refresh',
+  authRateLimit,
+  async (req, res) => {
+    try {
+      const { refreshToken } = req.body;
+
+      if (!refreshToken) {
+        return res.status(400).json({
+          message: 'Refresh token required',
+          code: 'REFRESH_TOKEN_REQUIRED'
+        });
+      }
+
+      // Verify refresh token
+      const decoded = jwtService.verifyRefreshToken(refreshToken);
+      const user = await User.findById(decoded.userId);
+
+      if (!user || !user.isActive) {
+        return res.status(401).json({
+          message: 'Invalid refresh token',
+          code: 'INVALID_REFRESH_TOKEN'
+        });
+      }
+
+      // Generate new tokens
+      const tokens = jwtService.generateTokenPair({
+        userId: user._id,
+        email: user.email,
+        role: user.role
+      });
+
+      res.json({
+        message: 'Tokens refreshed successfully',
+        tokens
+      });
+    } catch (error) {
+      console.error('Token refresh error:', error);
+      res.status(401).json({
+        message: 'Invalid refresh token',
+        code: 'INVALID_REFRESH_TOKEN'
+      });
+    }
+  }
+);
+
+// Logout
+router.post('/logout',
+  auth,
+  async (req, res) => {
+    try {
+      const { sessionId } = req.body;
+      const token = req.header('Authorization')?.replace('Bearer ', '');
+
+      // Blacklist current token
+      if (token) {
+        tokenBlacklist.blacklistToken(token);
+      }
+
+      // Remove session
+      if (sessionId && req.user) {
+        const user = await User.findById(req.user.userId);
+        if (user) {
+          user.removeActiveSession(sessionId);
+          await user.save();
+        }
+      }
+
+      securityLogger.logAPIUsage(req.user.userId, 'logout', 'POST', req.ip, req.get('User-Agent'));
+
+      res.json({
+        message: 'Logout successful'
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+      res.status(500).json({
+        message: 'Logout failed',
+        code: 'LOGOUT_FAILED'
+      });
+    }
+  }
+);
 
 // Get user profile
-router.get('/profile', authenticateToken, async (req, res) => {
+router.get('/profile', auth, async (req, res) => {
   try {
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({
+        message: 'User not found',
+        code: 'USER_NOT_FOUND'
+      });
+    }
+
     res.json({
-      user: req.user.getProfile()
+      user: user.getProfile(),
+      securityStatus: user.getSecurityStatus()
     });
   } catch (error) {
     console.error('Profile fetch error:', error);
-    res.status(500).json({ message: 'Error fetching profile', error: error.message });
-  }
-});
-
-// Update user profile
-router.put('/profile', authenticateToken, async (req, res) => {
-  try {
-    const { firstName, lastName, preferences, emergencyContacts } = req.body;
-    const updates = {};
-
-    if (firstName) updates.firstName = firstName;
-    if (lastName) updates.lastName = lastName;
-    if (preferences) updates.preferences = { ...req.user.preferences, ...preferences };
-    if (emergencyContacts) updates.emergencyContacts = emergencyContacts;
-
-    const user = await User.findByIdAndUpdate(
-      req.user._id,
-      updates,
-      { new: true, runValidators: true }
-    );
-
-    res.json({
-      message: 'Profile updated successfully',
-      user: user.getProfile()
+    res.status(500).json({
+      message: 'Failed to fetch profile',
+      code: 'PROFILE_FETCH_FAILED'
     });
-  } catch (error) {
-    console.error('Profile update error:', error);
-    res.status(500).json({ message: 'Error updating profile', error: error.message });
   }
 });
 
 // Change password
-router.put('/change-password', authenticateToken, async (req, res) => {
-  try {
-    const { currentPassword, newPassword } = req.body;
+router.put('/change-password',
+  auth,
+  validate(validationRules.passwordChange),
+  async (req, res) => {
+    try {
+      const { currentPassword, newPassword } = req.body;
+      const user = await User.findById(req.user.userId);
 
-    // Verify current password
-    const isValidPassword = await req.user.comparePassword(currentPassword);
-    if (!isValidPassword) {
-      return res.status(400).json({ message: 'Current password is incorrect' });
+      // Verify current password
+      const isValidPassword = await user.comparePassword(currentPassword);
+      if (!isValidPassword) {
+        return res.status(400).json({
+          message: 'Current password is incorrect',
+          code: 'INVALID_CURRENT_PASSWORD'
+        });
+      }
+
+      // Update password
+      user.password = newPassword;
+      await user.save();
+
+      securityLogger.logPasswordChange(user._id, req.ip, req.get('User-Agent'));
+
+      res.json({
+        message: 'Password changed successfully'
+      });
+    } catch (error) {
+      console.error('Password change error:', error);
+      
+      if (error.code === 'PASSWORD_REUSE') {
+        return res.status(400).json({
+          message: 'Cannot reuse recent passwords',
+          code: 'PASSWORD_REUSE'
+        });
+      }
+
+      res.status(500).json({
+        message: 'Password change failed',
+        code: 'PASSWORD_CHANGE_FAILED'
+      });
     }
-
-    // Update password
-    req.user.password = newPassword;
-    await req.user.save();
-
-    res.json({ message: 'Password changed successfully' });
-  } catch (error) {
-    console.error('Password change error:', error);
-    res.status(500).json({ message: 'Error changing password', error: error.message });
   }
-});
+);
 
-// Upload profile picture
-router.post('/profile-picture', authenticateToken, async (req, res) => {
-  try {
-    // In a real application, you would handle file upload here
-    // For now, we'll just accept a URL
-    const { profilePictureUrl } = req.body;
+// Request password reset
+router.post('/forgot-password',
+  passwordResetRateLimit,
+  async (req, res) => {
+    try {
+      const { email } = req.body;
 
-    if (!profilePictureUrl) {
-      return res.status(400).json({ message: 'Profile picture URL is required' });
+      const user = await User.findOne({ email });
+      if (!user) {
+        // Don't reveal if user exists
+        return res.json({
+          message: 'If an account with that email exists, a password reset link has been sent'
+        });
+      }
+
+      // Generate reset token
+      const resetToken = user.generatePasswordResetToken();
+      await user.save();
+
+      // In production, send email with reset token
+      console.log('Password reset token:', resetToken);
+
+      res.json({
+        message: 'If an account with that email exists, a password reset link has been sent'
+      });
+    } catch (error) {
+      console.error('Password reset request error:', error);
+      res.status(500).json({
+        message: 'Password reset request failed',
+        code: 'PASSWORD_RESET_FAILED'
+      });
     }
-
-    req.user.profilePicture = profilePictureUrl;
-    await req.user.save();
-
-    res.json({
-      message: 'Profile picture updated successfully',
-      user: req.user.getProfile()
-    });
-  } catch (error) {
-    console.error('Profile picture update error:', error);
-    res.status(500).json({ message: 'Error updating profile picture', error: error.message });
   }
-});
+);
 
+// Reset password
+router.post('/reset-password',
+  passwordResetRateLimit,
+  async (req, res) => {
+    try {
+      const { token, newPassword } = req.body;
 
-// Deactivate account
-router.put('/deactivate', authenticateToken, async (req, res) => {
-  try {
-    req.user.isActive = false;
-    await req.user.save();
+      if (!token || !newPassword) {
+        return res.status(400).json({
+          message: 'Token and new password are required',
+          code: 'MISSING_FIELDS'
+        });
+      }
 
-    res.json({ message: 'Account deactivated successfully' });
-  } catch (error) {
-    console.error('Account deactivation error:', error);
-    res.status(500).json({ message: 'Error deactivating account', error: error.message });
+      // Hash the token to compare with stored hash
+      const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+      const user = await User.findOne({
+        passwordResetToken: hashedToken,
+        passwordResetExpires: { $gt: Date.now() }
+      });
+
+      if (!user) {
+        return res.status(400).json({
+          message: 'Invalid or expired reset token',
+          code: 'INVALID_RESET_TOKEN'
+        });
+      }
+
+      // Update password
+      user.password = newPassword;
+      user.passwordResetToken = null;
+      user.passwordResetExpires = null;
+      await user.save();
+
+      securityLogger.logPasswordChange(user._id, req.ip, req.get('User-Agent'));
+
+      res.json({
+        message: 'Password reset successfully'
+      });
+    } catch (error) {
+      console.error('Password reset error:', error);
+      res.status(500).json({
+        message: 'Password reset failed',
+        code: 'PASSWORD_RESET_FAILED'
+      });
+    }
   }
-});
+);
 
-// Reactivate account
-router.put('/reactivate', authenticateToken, async (req, res) => {
-  try {
-    req.user.isActive = true;
-    await req.user.save();
+// 2FA setup
+router.post('/2fa/setup',
+  auth,
+  async (req, res) => {
+    try {
+      const user = await User.findById(req.user.userId);
+      
+      if (user.twoFactorEnabled) {
+        return res.status(400).json({
+          message: '2FA is already enabled',
+          code: '2FA_ALREADY_ENABLED'
+        });
+      }
 
-    res.json({ message: 'Account reactivated successfully' });
-  } catch (error) {
-    console.error('Account reactivation error:', error);
-    res.status(500).json({ message: 'Error reactivating account', error: error.message });
+      // Generate 2FA secret
+      const secretData = twoFactorService.generateSecret(user.email);
+      const qrCode = await twoFactorService.generateQRCode(secretData.secret, user.email);
+
+      res.json({
+        secret: secretData.secret,
+        qrCode,
+        manualEntryKey: secretData.manualEntryKey
+      });
+    } catch (error) {
+      console.error('2FA setup error:', error);
+      res.status(500).json({
+        message: '2FA setup failed',
+        code: '2FA_SETUP_FAILED'
+      });
+    }
   }
-});
+);
 
-// Refresh token
-router.post('/refresh-token', authenticateToken, async (req, res) => {
-  try {
-    // Generate new token
-    const token = jwt.sign(
-      { userId: req.user._id },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '7d' }
-    );
+// Enable 2FA
+router.post('/2fa/enable',
+  auth,
+  async (req, res) => {
+    try {
+      const { secret, token, backupCodes } = req.body;
+      const user = await User.findById(req.user.userId);
 
-    res.json({
-      message: 'Token refreshed successfully',
-      token
-    });
-  } catch (error) {
-    console.error('Token refresh error:', error);
-    res.status(500).json({ message: 'Error refreshing token', error: error.message });
+      const result = await twoFactorService.enable2FA(user, secret, token, backupCodes);
+
+      res.json(result);
+    } catch (error) {
+      console.error('2FA enable error:', error);
+      res.status(500).json({
+        message: '2FA enable failed',
+        code: '2FA_ENABLE_FAILED'
+      });
+    }
   }
-});
+);
 
-// Logout (client-side token removal)
-router.post('/logout', authenticateToken, async (req, res) => {
-  try {
-    // In a real application, you might want to blacklist the token
-    // For now, we'll just return a success message
-    res.json({ message: 'Logout successful' });
-  } catch (error) {
-    console.error('Logout error:', error);
-    res.status(500).json({ message: 'Error during logout', error: error.message });
+// Disable 2FA
+router.post('/2fa/disable',
+  auth,
+  async (req, res) => {
+    try {
+      const { token } = req.body;
+      const user = await User.findById(req.user.userId);
+
+      const result = await twoFactorService.disable2FA(user, token);
+
+      res.json(result);
+    } catch (error) {
+      console.error('2FA disable error:', error);
+      res.status(500).json({
+        message: '2FA disable failed',
+        code: '2FA_DISABLE_FAILED'
+      });
+    }
   }
-});
+);
+
+// Get 2FA status
+router.get('/2fa/status',
+  auth,
+  async (req, res) => {
+    try {
+      const user = await User.findById(req.user.userId);
+      const status = twoFactorService.get2FAStatus(user);
+
+      res.json(status);
+    } catch (error) {
+      console.error('2FA status error:', error);
+      res.status(500).json({
+        message: 'Failed to get 2FA status',
+        code: '2FA_STATUS_FAILED'
+      });
+    }
+  }
+);
+
+// Generate new backup codes
+router.post('/2fa/backup-codes',
+  auth,
+  async (req, res) => {
+    try {
+      const { token } = req.body;
+      const user = await User.findById(req.user.userId);
+
+      const result = await twoFactorService.generateNewBackupCodes(user, token);
+
+      res.json(result);
+    } catch (error) {
+      console.error('Backup codes generation error:', error);
+      res.status(500).json({
+        message: 'Failed to generate backup codes',
+        code: 'BACKUP_CODES_FAILED'
+      });
+    }
+  }
+);
+
+// GDPR - Get user data
+router.get('/gdpr/data',
+  auth,
+  async (req, res) => {
+    try {
+      const userData = await gdprService.getUserData(req.user.userId);
+      res.json(userData);
+    } catch (error) {
+      console.error('GDPR data export error:', error);
+      res.status(500).json({
+        message: 'Failed to export user data',
+        code: 'DATA_EXPORT_FAILED'
+      });
+    }
+  }
+);
+
+// GDPR - Update consent preferences
+router.put('/gdpr/consent',
+  auth,
+  async (req, res) => {
+    try {
+      const { preferences } = req.body;
+      const result = await gdprService.updateConsentPreferences(req.user.userId, preferences);
+      res.json(result);
+    } catch (error) {
+      console.error('GDPR consent update error:', error);
+      res.status(500).json({
+        message: 'Failed to update consent preferences',
+        code: 'CONSENT_UPDATE_FAILED'
+      });
+    }
+  }
+);
+
+// GDPR - Request data deletion
+router.post('/gdpr/delete',
+  auth,
+  async (req, res) => {
+    try {
+      const { reason } = req.body;
+      const result = await gdprService.requestDataDeletion(req.user.userId, reason);
+      res.json(result);
+    } catch (error) {
+      console.error('GDPR deletion request error:', error);
+      res.status(500).json({
+        message: 'Failed to request data deletion',
+        code: 'DELETION_REQUEST_FAILED'
+      });
+    }
+  }
+);
+
+// Get active sessions
+router.get('/sessions',
+  auth,
+  async (req, res) => {
+    try {
+      const user = await User.findById(req.user.userId);
+      const sessions = user.activeSessions || [];
+
+      res.json({
+        sessions: sessions.map(session => ({
+          sessionId: session.sessionId,
+          userAgent: session.userAgent,
+          ip: session.ip,
+          createdAt: session.createdAt,
+          lastActivity: session.lastActivity
+        }))
+      });
+    } catch (error) {
+      console.error('Sessions fetch error:', error);
+      res.status(500).json({
+        message: 'Failed to fetch sessions',
+        code: 'SESSIONS_FETCH_FAILED'
+      });
+    }
+  }
+);
+
+// Revoke session
+router.delete('/sessions/:sessionId',
+  auth,
+  async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const user = await User.findById(req.user.userId);
+
+      user.removeActiveSession(sessionId);
+      await user.save();
+
+      res.json({
+        message: 'Session revoked successfully'
+      });
+    } catch (error) {
+      console.error('Session revocation error:', error);
+      res.status(500).json({
+        message: 'Failed to revoke session',
+        code: 'SESSION_REVOKE_FAILED'
+      });
+    }
+  }
+);
 
 module.exports = router;

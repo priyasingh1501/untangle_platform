@@ -9,6 +9,23 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
+const helmet = require('helmet');
+const compression = require('compression');
+const rateLimit = require('express-rate-limit');
+
+// Import security configuration
+const { securityConfig, validateSecurityConfig } = require('./config/security');
+const { logger, securityLogger } = require('./config/logger');
+const { 
+  generalRateLimit, 
+  authRateLimit, 
+  passwordResetRateLimit,
+  fileUploadRateLimit,
+  apiRateLimit,
+  searchRateLimit,
+  dataExportRateLimit
+} = require('./middleware/rateLimiting');
+const { sanitizeInput } = require('./middleware/validation');
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -29,6 +46,9 @@ const tasksRoutes = require('./routes/tasks');
 const emailExpenseRoutes = require('./routes/emailExpense');
 const whatsappRoutes = require('./routes/whatsapp');
 
+// Validate security configuration
+validateSecurityConfig();
+
 // Debug environment variable loading
 console.log('🔍 Environment check on startup:');
 console.log('🔍 Current working directory:', process.cwd());
@@ -42,70 +62,57 @@ console.log('🔍 NODE_ENV:', process.env.NODE_ENV);
 console.log('🔍 COMMIT (Railway):', process.env.RAILWAY_GIT_COMMIT_SHA || 'n/a');
 console.log('🔍 COMMIT (Vercel):', process.env.VERCEL_GIT_COMMIT_SHA || 'n/a');
 console.log('🔍 DEPLOY TRIGGER:', new Date().toISOString());
-console.log('🔍 FORCE REBUILD:', 'AUTHENTICATION SERVER DEPLOYMENT - ' + Math.random().toString(36).substr(2, 9));
+console.log('🔍 FORCE REBUILD:', 'MONGODB CONNECTION TEST - ' + Math.random().toString(36).substr(2, 9));
 
 const app = express();
 const PORT = process.env.PORT || 5002;
 
-// Middleware
-// Configure CORS to allow Vercel frontend and local development
-const envOrigins = (process.env.CORS_ORIGIN || '')
-  .split(',')
-  .map(s => s.trim())
-  .filter(Boolean);
+// Security middleware (order matters!)
+app.use(helmet(securityConfig.helmet));
+app.use(compression());
 
-const allowedOrigins = [
-  ...envOrigins,
-  'https://untangle-six.vercel.app',
-  'http://localhost:3000',
-  'http://127.0.0.1:3000',
-];
+// Trust proxy for accurate IP addresses
+app.set('trust proxy', 1);
 
-// Relaxed CORS: reflect request origin and succeed on preflight
-const corsOptions = {
-  origin: (origin, callback) => {
-    // Allow all origins for now to fix CORS issues
-    callback(null, true);
-  },
-  credentials: false,
-  optionsSuccessStatus: 204,
-};
-console.log('🔍 CORS mode: allow-all origins via callback');
-
-app.use(cors(corsOptions));
-
-// Global OPTIONS short-circuit to guarantee preflight success
+// Request logging
 app.use((req, res, next) => {
-  if (req.method === 'OPTIONS') {
-    const origin = req.headers.origin || '*';
-    res.header('Access-Control-Allow-Origin', origin);
-    res.header('Vary', 'Origin, Access-Control-Request-Headers');
-    res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
-    res.header('Access-Control-Allow-Headers', req.header('Access-Control-Request-Headers') || 'content-type,authorization');
-    // If using cookies, uncomment:
-    // res.header('Access-Control-Allow-Credentials', 'true');
-
-    return res.sendStatus(204);
-  }
+  logger.info(`${req.method} ${req.path}`, {
+    ip: req.ip,
+    userAgent: req.get('User-Agent'),
+    timestamp: new Date().toISOString()
+  });
   next();
 });
 
-// Handle preflight requests using same options
-app.options('*', cors(corsOptions));
+// CORS configuration
+const corsOptions = {
+  origin: securityConfig.cors.origin,
+  credentials: securityConfig.cors.credentials,
+  optionsSuccessStatus: securityConfig.cors.optionsSuccessStatus,
+  methods: securityConfig.cors.methods,
+  allowedHeaders: securityConfig.cors.allowedHeaders
+};
 
-// Explicit preflight for login to guarantee headers
-app.options('/api/auth/login', (req, res) => {
-  const reqOrigin = req.headers.origin;
-  if (reqOrigin) {
-    res.header('Access-Control-Allow-Origin', reqOrigin);
-    res.header('Vary', 'Origin');
+app.use(cors(corsOptions));
+
+// Body parsing with size limits
+app.use(express.json({ 
+  limit: securityConfig.api.maxRequestSize,
+  verify: (req, res, buf) => {
+    // Add raw body for webhook signature verification
+    req.rawBody = buf;
   }
-  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.header('Access-Control-Allow-Headers', req.header('Access-Control-Request-Headers') || 'content-type,authorization');
-  return res.sendStatus(204);
-});
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+}));
+app.use(express.urlencoded({ 
+  extended: true, 
+  limit: securityConfig.api.maxRequestSize 
+}));
+
+// Input sanitization
+app.use(sanitizeInput);
+
+// Rate limiting
+app.use(generalRateLimit);
 
 // Database connection
 const connectDB = async () => {
@@ -137,11 +144,24 @@ setTimeout(() => {
   console.log('✅ Server is fully ready for health checks');
 }, 5000);
 
-// Routes
-// Route-scoped CORS for auth to guarantee preflight success on prod
-const authCors = cors({ origin: true, credentials: false, optionsSuccessStatus: 204 });
-app.options('/api/auth/*', authCors);
-app.use('/api/auth', authCors, authRoutes);
+// Routes with specific rate limiting
+app.use('/api/auth', authRateLimit, authRoutes);
+app.use('/api/finance', apiRateLimit, financeRoutes);
+app.use('/api/journal', apiRateLimit, journalRoutes);
+app.use('/api/content', apiRateLimit, contentRoutes);
+app.use('/api/book-documents', apiRateLimit, bookDocumentRoutes);
+app.use('/api/ai-chat', apiRateLimit, aiChatRoutes);
+app.use('/api/goals', apiRateLimit, goalRoutes);
+app.use('/api/habits', apiRateLimit, habitRoutes);
+app.use('/api/mindfulness', apiRateLimit, mindfulnessRoutes);
+app.use('/api/food', apiRateLimit, foodRoutes);
+app.use('/api/meals', apiRateLimit, mealsRoutes);
+app.use('/api/dev', apiRateLimit, devRoutes);
+app.use('/api/ai', apiRateLimit, aiQuoteAnalysisRoutes);
+app.use('/api/billing', apiRateLimit, billingRoutes);
+app.use('/api/tasks', apiRateLimit, tasksRoutes);
+app.use('/api/email-expense', fileUploadRateLimit, emailExpenseRoutes);
+app.use('/api/whatsapp', apiRateLimit, whatsappRoutes);
 
 // Root health check endpoint for Railway
 app.get('/health', (req, res) => {
@@ -151,22 +171,6 @@ app.get('/health', (req, res) => {
     uptime: process.uptime()
   });
 });
-app.use('/api/finance', financeRoutes);
-app.use('/api/journal', journalRoutes);
-app.use('/api/content', contentRoutes);
-app.use('/api/book-documents', bookDocumentRoutes);
-app.use('/api/ai-chat', aiChatRoutes);
-app.use('/api/goals', goalRoutes);
-app.use('/api/habits', habitRoutes);
-app.use('/api/mindfulness', mindfulnessRoutes);
-app.use('/api/food', foodRoutes);
-app.use('/api/meals', mealsRoutes);
-app.use('/api/dev', devRoutes);
-app.use('/api/ai', aiQuoteAnalysisRoutes);
-app.use('/api/billing', billingRoutes);
-app.use('/api/tasks', tasksRoutes);
-app.use('/api/email-expense', emailExpenseRoutes);
-app.use('/api/whatsapp', whatsappRoutes);
 
 // Serve static files in production
 if (process.env.NODE_ENV === 'production') {
@@ -178,15 +182,39 @@ if (process.env.NODE_ENV === 'production') {
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  const origin = req.headers.origin || '*';
-  res.header('Access-Control-Allow-Origin', origin);
-  res.header('Vary', 'Origin, Access-Control-Request-Headers');
-  res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
-  res.header('Access-Control-Allow-Headers', req.header('Access-Control-Request-Headers') || 'content-type,authorization');
-  // If using cookies, uncomment the next line
-  // res.header('Access-Control-Allow-Credentials', 'true');
-  res.status(err.status || 500).json({ message: err.message || 'Something went wrong!' });
+  logger.error('Unhandled error:', {
+    error: err.message,
+    stack: err.stack,
+    path: req.path,
+    method: req.method,
+    ip: req.ip,
+    userAgent: req.get('User-Agent')
+  });
+
+  // Log security-related errors
+  if (err.status === 401 || err.status === 403 || err.status === 429) {
+    securityLogger.logSuspiciousActivity(
+      req.user?.userId || 'anonymous',
+      'error_response',
+      { 
+        error: err.message, 
+        status: err.status,
+        path: req.path 
+      },
+      req.ip
+    );
+  }
+
+  // Don't expose internal errors in production
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  const message = isDevelopment ? err.message : 'Internal server error';
+  const stack = isDevelopment ? err.stack : undefined;
+
+  res.status(err.status || 500).json({ 
+    message,
+    ...(stack && { stack }),
+    code: err.code || 'INTERNAL_ERROR'
+  });
 });
 
 // Test endpoint to verify full server is running
