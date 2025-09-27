@@ -1,26 +1,8 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "web/client/package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "build",
-        "buildCommand": "npm run vercel-build",
-        "installCommand": "npm install"
-      }
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/backend/api/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/web/client/$1"
-    }
-  ],
+  "buildCommand": "cd web/client && npm install && npm run vercel-build",
+  "outputDirectory": "web/client/build",
+  "installCommand": "cd web/client && npm install",
   "env": {
     "REACT_APP_API_URL": "https://untangle-production.up.railway.app",
     "CI": "false"
