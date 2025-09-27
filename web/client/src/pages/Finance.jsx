@@ -13,11 +13,14 @@ import {
   TrendingUp,
   TrendingDown,
   CreditCard,
-  Target
+  Target,
+  Mail
 } from 'lucide-react';
 import axios from 'axios';
 import Card from '../components/ui/Card';
 import { componentStyles, animations } from '../styles/designTokens';
+import EmailExpenseSettings from '../components/EmailExpenseSettings';
+import EmailExpensesList from '../components/EmailExpensesList';
 
 const Finance = () => {
   
@@ -840,7 +843,7 @@ const Finance = () => {
           <div className="flex flex-col lg:flex-row lg:items-center gap-4">
             {/* Tabs */}
             <div className="flex space-x-1 bg-[rgba(0,0,0,0.2)] p-1 rounded-lg w-fit border border-[rgba(255,255,255,0.1)] mx-auto lg:mx-0">
-              {['overview', 'expenses', 'subscriptions'].map((tab) => (
+              {['overview', 'expenses', 'email-expenses', 'subscriptions'].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
@@ -850,7 +853,7 @@ const Finance = () => {
                       : 'text-text-secondary hover:text-text-primary hover:bg-[rgba(30,73,201,0.1)]'
                   }`}
                 >
-                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                  {tab === 'email-expenses' ? 'Email Expenses' : tab.charAt(0).toUpperCase() + tab.slice(1)}
                 </button>
               ))}
             </div>
@@ -1312,6 +1315,34 @@ const Finance = () => {
           })()}
         </Card>
           </div>
+      )}
+
+      {activeTab === 'email-expenses' && (
+        <div className="md:col-span-2 lg:col-span-3 xl:col-span-4">
+          <div className="space-y-6">
+            {/* Email Settings */}
+            <Card 
+              variant="base"
+              className="h-full"
+              title="EMAIL FORWARDING SETTINGS"
+              subtitle="Configure your unique email address for automatic expense logging"
+              icon={<Mail className="h-5 w-5 text-[#1E49C9]" />}
+            >
+              <EmailExpenseSettings />
+            </Card>
+
+            {/* Email-Created Expenses */}
+            <Card 
+              variant="base"
+              className="h-full"
+              title="EMAIL-CREATED EXPENSES"
+              subtitle="Expenses automatically created from forwarded emails"
+              icon={<Mail className="h-5 w-5 text-[#1E49C9]" />}
+            >
+              <EmailExpensesList />
+            </Card>
+          </div>
+        </div>
       )}
 
       </div>
