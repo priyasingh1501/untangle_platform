@@ -26,6 +26,8 @@ const devRoutes = require('./routes/dev');
 const aiQuoteAnalysisRoutes = require('./routes/aiQuoteAnalysis');
 const billingRoutes = require('./routes/billing');
 const tasksRoutes = require('./routes/tasks');
+const emailExpenseRoutes = require('./routes/emailExpense');
+const whatsappRoutes = require('./routes/whatsapp');
 
 // Debug environment variable loading
 console.log('🔍 Environment check on startup:');
@@ -157,6 +159,8 @@ app.use('/api/dev', devRoutes);
 app.use('/api/ai', aiQuoteAnalysisRoutes);
 app.use('/api/billing', billingRoutes);
 app.use('/api/tasks', tasksRoutes);
+app.use('/api/email-expense', emailExpenseRoutes);
+app.use('/api/whatsapp', whatsappRoutes);
 
 // Serve static files in production
 if (process.env.NODE_ENV === 'production') {

@@ -68,6 +68,23 @@ const expenseSchema = new mongoose.Schema({
     type: String,
     enum: ['pending', 'completed', 'cancelled'],
     default: 'completed'
+  },
+  source: {
+    type: String,
+    enum: ['manual', 'email', 'ai_chat', 'import', 'other'],
+    default: 'manual'
+  },
+  emailData: {
+    subject: String,
+    from: String,
+    confidence: {
+      type: String,
+      enum: ['high', 'medium', 'low']
+    },
+    needsManualReview: {
+      type: Boolean,
+      default: false
+    }
   }
 }, {
   timestamps: true
