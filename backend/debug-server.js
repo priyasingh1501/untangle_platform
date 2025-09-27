@@ -6,7 +6,7 @@ const mongoose = require('mongoose');
 const app = express();
 const PORT = process.env.PORT || 5002;
 
-console.log('🔍 DEBUG SERVER STARTING...');
+console.log('🔍 DEBUG SERVER STARTING - IP WHITELIST UPDATED...');
 console.log('🔍 Environment check:');
 console.log('🔍 NODE_ENV:', process.env.NODE_ENV);
 console.log('🔍 PORT:', PORT);
