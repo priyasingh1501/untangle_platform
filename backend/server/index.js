@@ -110,14 +110,20 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // Database connection
 const connectDB = async () => {
   try {
+    console.log('🔍 Attempting to connect to MongoDB...');
+    console.log('🔍 MONGODB_URI exists:', !!process.env.MONGODB_URI);
+    console.log('🔍 MONGODB_URI length:', process.env.MONGODB_URI?.length || 0);
+    
     await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/untangle', {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     });
-    console.log('✅ Connected to MongoDB');
+    console.log('✅ Connected to MongoDB successfully');
   } catch (err) {
-    console.error('❌ MongoDB connection error:', err);
+    console.error('❌ MongoDB connection error:', err.message);
+    console.error('❌ MongoDB error details:', err);
     // Don't exit the process, let the health check handle it
+    console.log('⚠️ Continuing without MongoDB connection...');
   }
 };
 
@@ -190,7 +196,23 @@ app.get('/api/server-test', (req, res) => {
     timestamp: new Date().toISOString(),
     hasAuth: true,
     hasFinance: true,
-    hasEmailExpense: true
+    hasEmailExpense: true,
+    mongodbConnected: mongoose.connection.readyState === 1,
+    mongodbState: mongoose.connection.readyState
+  });
+});
+
+// MongoDB status endpoint
+app.get('/api/mongodb-status', (req, res) => {
+  res.json({
+    connected: mongoose.connection.readyState === 1,
+    state: mongoose.connection.readyState,
+    stateText: ['disconnected', 'connected', 'connecting', 'disconnecting'][mongoose.connection.readyState],
+    host: mongoose.connection.host,
+    port: mongoose.connection.port,
+    name: mongoose.connection.name,
+    hasMongoUri: !!process.env.MONGODB_URI,
+    mongoUriLength: process.env.MONGODB_URI?.length || 0
   });
 });
 
