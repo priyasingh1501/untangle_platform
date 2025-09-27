@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "buildCommand": "npm run vercel-build",
+  "outputDirectory": "build",
+  "env": {
+    "REACT_APP_API_URL": "https://lyfe-production.up.railway.app",
+    "CI": "false"
+  }
+}
