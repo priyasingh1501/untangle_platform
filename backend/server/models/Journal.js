@@ -1,4 +1,7 @@
 const mongoose = require('mongoose');
+const EncryptionService = require('../services/encryptionService');
+
+const encryptionService = new EncryptionService();
 
 const journalEntrySchema = new mongoose.Schema({
   title: {
@@ -9,6 +12,15 @@ const journalEntrySchema = new mongoose.Schema({
   content: {
     type: String,
     required: true
+  },
+  // Encrypted fields
+  encryptedTitle: {
+    type: Object, // { encrypted: string, iv: string, tag: string }
+    default: null
+  },
+  encryptedContent: {
+    type: Object, // { encrypted: string, iv: string, tag: string }
+    default: null
   },
   type: {
     type: String,
@@ -97,6 +109,80 @@ const journalEntrySchema = new mongoose.Schema({
   timestamps: true
 });
 
+// Encrypt sensitive data before saving
+journalEntrySchema.pre('save', async function(next) {
+  try {
+    // Only encrypt if content has changed and is not already encrypted
+    if (this.isModified('content') && this.content && !this.encryptedContent) {
+      this.encryptedContent = encryptionService.encrypt(this.content);
+      // Clear plain text content after encryption
+      this.content = undefined;
+    }
+    
+    if (this.isModified('title') && this.title && !this.encryptedTitle) {
+      this.encryptedTitle = encryptionService.encrypt(this.title);
+      // Clear plain text title after encryption
+      this.title = undefined;
+    }
+    
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Decrypt sensitive data when retrieving
+journalEntrySchema.post('init', function() {
+  try {
+    // Decrypt content if encrypted
+    if (this.encryptedContent && !this.content) {
+      this.content = encryptionService.decrypt(this.encryptedContent);
+    }
+    
+    // Decrypt title if encrypted
+    if (this.encryptedTitle && !this.title) {
+      this.title = encryptionService.decrypt(this.encryptedTitle);
+    }
+  } catch (error) {
+    console.error('Error decrypting journal entry:', error);
+  }
+});
+
+// Method to get decrypted entry
+journalEntrySchema.methods.getDecryptedEntry = function() {
+  const entry = this.toObject();
+  
+  try {
+    if (this.encryptedContent) {
+      entry.content = encryptionService.decrypt(this.encryptedContent);
+    }
+    if (this.encryptedTitle) {
+      entry.title = encryptionService.decrypt(this.encryptedTitle);
+    }
+  } catch (error) {
+    console.error('Error decrypting journal entry:', error);
+  }
+  
+  return entry;
+};
+
+// Method to encrypt entry before saving
+journalEntrySchema.methods.encryptEntry = function() {
+  try {
+    if (this.content && !this.encryptedContent) {
+      this.encryptedContent = encryptionService.encrypt(this.content);
+      this.content = undefined;
+    }
+    if (this.title && !this.encryptedTitle) {
+      this.encryptedTitle = encryptionService.encrypt(this.title);
+      this.title = undefined;
+    }
+  } catch (error) {
+    console.error('Error encrypting journal entry:', error);
+    throw error;
+  }
+};
+
 const journalSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -181,5 +267,75 @@ journalSchema.pre('save', function(next) {
   }
   next();
 });
+
+// Method to get all entries with decrypted content
+journalSchema.methods.getDecryptedEntries = function() {
+  return this.entries.map(entry => entry.getDecryptedEntry());
+};
+
+// Method to add a new entry with encryption
+journalSchema.methods.addEncryptedEntry = function(entryData) {
+  const entry = {
+    ...entryData,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  };
+  
+  // Encrypt sensitive fields
+  if (entry.title) {
+    entry.encryptedTitle = encryptionService.encrypt(entry.title);
+    delete entry.title;
+  }
+  if (entry.content) {
+    entry.encryptedContent = encryptionService.encrypt(entry.content);
+    delete entry.content;
+  }
+  
+  this.entries.push(entry);
+  return this.save();
+};
+
+// Method to update an entry with encryption
+journalSchema.methods.updateEncryptedEntry = function(entryId, updateData) {
+  const entry = this.entries.id(entryId);
+  if (!entry) {
+    throw new Error('Entry not found');
+  }
+  
+  // Encrypt sensitive fields if they're being updated
+  if (updateData.title) {
+    entry.encryptedTitle = encryptionService.encrypt(updateData.title);
+    delete updateData.title;
+  }
+  if (updateData.content) {
+    entry.encryptedContent = encryptionService.encrypt(updateData.content);
+    delete updateData.content;
+  }
+  
+  // Update other fields
+  Object.assign(entry, updateData);
+  entry.updatedAt = new Date();
+  
+  return this.save();
+};
+
+// Method to get a specific entry with decrypted content
+journalSchema.methods.getDecryptedEntry = function(entryId) {
+  const entry = this.entries.id(entryId);
+  if (!entry) {
+    return null;
+  }
+  return entry.getDecryptedEntry();
+};
+
+// Static method to find journal with decrypted entries
+journalSchema.statics.findWithDecryptedEntries = function(query) {
+  return this.find(query).then(journals => {
+    return journals.map(journal => ({
+      ...journal.toObject(),
+      entries: journal.getDecryptedEntries()
+    }));
+  });
+};
 
 module.exports = mongoose.model('Journal', journalSchema);

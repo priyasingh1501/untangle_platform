@@ -50,7 +50,13 @@ router.get('/', authenticateToken, async (req, res) => {
       await journal.save();
     }
     
-    res.json(journal);
+    // Get decrypted entries
+    const decryptedEntries = journal.getDecryptedEntries();
+    
+    res.json({
+      ...journal.toObject(),
+      entries: decryptedEntries
+    });
   } catch (error) {
     console.error('Error fetching journal:', error);
     res.status(500).json({ message: 'Error fetching journal' });
@@ -80,7 +86,7 @@ router.post('/entries', authenticateToken, async (req, res) => {
       });
     }
     
-    const newEntry = {
+    const newEntryData = {
       title,
       content,
       type: type || 'daily',
@@ -91,14 +97,20 @@ router.post('/entries', authenticateToken, async (req, res) => {
       weather
     };
     
-    journal.entries.unshift(newEntry); // Add to beginning
-    await journal.save();
+    // Use encrypted entry method
+    await journal.addEncryptedEntry(newEntryData);
+    
+    // Get the newly added entry with decrypted content for response
+    const newEntry = journal.getDecryptedEntry(journal.entries[0]._id);
     
     // Return success immediately, then analyze in background
     res.status(201).json({
       message: 'Journal entry created successfully',
-      entry: journal.entries[0],
-      journal
+      entry: newEntry,
+      journal: {
+        ...journal.toObject(),
+        entries: journal.getDecryptedEntries()
+      }
     });
     
     // Analyze the new entry with Alfred in background (non-blocking)
@@ -158,23 +170,15 @@ router.put('/entries/:entryId', authenticateToken, async (req, res) => {
       return res.status(404).json({ message: 'Journal not found' });
     }
     
-    const entryIndex = journal.entries.findIndex(entry => entry._id.toString() === entryId);
-    if (entryIndex === -1) {
-      return res.status(404).json({ message: 'Entry not found' });
-    }
+    // Use encrypted update method
+    await journal.updateEncryptedEntry(entryId, updates);
     
-    // Update entry fields
-    Object.keys(updates).forEach(key => {
-      if (key !== '_id' && key !== 'createdAt' && key !== 'updatedAt') {
-        journal.entries[entryIndex][key] = updates[key];
-      }
-    });
-    
-    await journal.save();
+    // Get the updated entry with decrypted content
+    const updatedEntry = journal.getDecryptedEntry(entryId);
     
     res.json({
       message: 'Entry updated successfully',
-      entry: journal.entries[entryIndex]
+      entry: updatedEntry
     });
   } catch (error) {
     console.error('Error updating journal entry:', error);
@@ -217,7 +221,8 @@ router.get('/entries/:entryId', authenticateToken, async (req, res) => {
       return res.status(404).json({ message: 'Journal not found' });
     }
     
-    const entry = journal.entries.find(entry => entry._id.toString() === entryId);
+    // Use encrypted method to get decrypted entry
+    const entry = journal.getDecryptedEntry(entryId);
     if (!entry) {
       return res.status(404).json({ message: 'Entry not found' });
     }
@@ -272,8 +277,11 @@ router.get('/entries', authenticateToken, async (req, res) => {
     const endIndex = startIndex + parseInt(limit);
     const paginatedEntries = filteredEntries.slice(startIndex, endIndex);
     
+    // Decrypt entries for response
+    const decryptedEntries = paginatedEntries.map(entry => entry.getDecryptedEntry());
+    
     res.json({
-      entries: paginatedEntries,
+      entries: decryptedEntries,
       total,
       page: parseInt(page),
       totalPages,

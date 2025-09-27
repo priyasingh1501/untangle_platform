@@ -172,6 +172,19 @@ app.get('/health', (req, res) => {
   });
 });
 
+// API health check endpoint for Railway
+app.get('/api/health', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    message: 'Backend server is running',
+    timestamp: new Date().toISOString(),
+    port: PORT,
+    environment: process.env.NODE_ENV || 'development',
+    mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    uptime: process.uptime()
+  });
+});
+
 // Serve static files in production
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../client/build')));
