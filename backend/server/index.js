@@ -42,7 +42,7 @@ console.log('🔍 NODE_ENV:', process.env.NODE_ENV);
 console.log('🔍 COMMIT (Railway):', process.env.RAILWAY_GIT_COMMIT_SHA || 'n/a');
 console.log('🔍 COMMIT (Vercel):', process.env.VERCEL_GIT_COMMIT_SHA || 'n/a');
 console.log('🔍 DEPLOY TRIGGER:', new Date().toISOString());
-console.log('🔍 FORCE REBUILD:', 'Full server deployment - ' + Math.random().toString(36).substr(2, 9));
+console.log('🔍 FORCE REBUILD:', 'AUTHENTICATION SERVER DEPLOYMENT - ' + Math.random().toString(36).substr(2, 9));
 
 const app = express();
 const PORT = process.env.PORT || 5002;
@@ -183,8 +183,20 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500).json({ message: err.message || 'Something went wrong!' });
 });
 
+// Test endpoint to verify full server is running
+app.get('/api/server-test', (req, res) => {
+  res.json({ 
+    message: 'Full server with authentication is running!',
+    timestamp: new Date().toISOString(),
+    hasAuth: true,
+    hasFinance: true,
+    hasEmailExpense: true
+  });
+});
+
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🚀 Full server running on port ${PORT}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔗 Health check available at: http://0.0.0.0:${PORT}/api/health`);
+  console.log(`🔗 Server test available at: http://0.0.0.0:${PORT}/api/server-test`);
 });
