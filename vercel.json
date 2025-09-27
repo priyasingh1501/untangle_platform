@@ -1,5 +1,8 @@
 {
   "version": 2,
+  "buildCommand": "cd web/client && npm ci && npm run build",
+  "outputDirectory": "web/client/build",
+  "installCommand": "cd web/client && npm install",
   "builds": [
     {
       "src": "web/client/package.json",
