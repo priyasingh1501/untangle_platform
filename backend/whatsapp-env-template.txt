@@ -1,0 +1,13 @@
+# Add these variables to your .env file for WhatsApp Bot functionality
+
+# WhatsApp Bot Configuration
+# Get these from your WhatsApp Business API setup
+WHATSAPP_PHONE_NUMBER_ID=your_phone_number_id_here
+WHATSAPP_ACCESS_TOKEN=your_access_token_here
+WHATSAPP_VERIFY_TOKEN=your_custom_verify_token_here
+WHATSAPP_WEBHOOK_URL=https://your-domain.com/api/whatsapp/webhook
+
+# Make sure you also have these existing variables:
+# OPENAI_API_KEY=your_openai_api_key_here (required for AI parsing)
+# MONGODB_URI=your_mongodb_connection_string
+# JWT_SECRET=your_jwt_secret
