@@ -24,6 +24,7 @@
     "start": "react-scripts start",
     "build": "CI=false react-scripts build",
     "build:vercel": "CI=false react-scripts build",
+    "vercel-build": "CI=false react-scripts build",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
@@ -67,7 +68,7 @@
     "vitest": "^1.0.0"
   },
   "engines": {
-    "node": ">=20 <21",
-    "npm": ">=10"
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
   }
 }
