@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
+const { v4: uuidv4 } = require('uuid');
+const mailparser = require('mailparser');
+const simpleParser = mailparser.simpleParser;
 const EmailForwarding = require('../models/EmailForwarding');
 const { Expense } = require('../models/Finance');
 const EmailParsingService = require('../services/emailParsingService');

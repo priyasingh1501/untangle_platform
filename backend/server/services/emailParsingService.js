@@ -1,4 +1,11 @@
-const Imap = require('imap');
+// Optional IMAP dependency - will be used when available
+let Imap;
+try {
+  Imap = require('imap');
+} catch (error) {
+  console.warn('IMAP module not available:', error.message);
+}
+
 const { simpleParser } = require('mailparser');
 const fs = require('fs');
 const path = require('path');
@@ -15,6 +22,10 @@ class EmailParsingService {
    * Connect to IMAP server and fetch emails
    */
   async fetchEmails(imapConfig) {
+    if (!Imap) {
+      throw new Error('IMAP module not available. Email fetching is disabled.');
+    }
+
     return new Promise((resolve, reject) => {
       const imap = new Imap({
         host: imapConfig.host,
