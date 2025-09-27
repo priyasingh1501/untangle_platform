@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server/index.js",
     "dev": "nodemon server/index.js",
-    "build:prod": "cd client && npm install && npm run build",
+    "build:prod": "echo 'Backend server build complete'",
     "seed:all": "node scripts/seedUpgrader.js",
     "seed:qa": "node scripts/seedUpgrader.js --qa-only",
     "seed:ifct": "node scripts/seedFoodData.js",
