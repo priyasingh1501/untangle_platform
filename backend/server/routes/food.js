@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const FoodItem = require('../models/FoodItem');
-const auth = require('../middleware/auth');
+const { auth } = require('../middleware/auth');
 const { foldName } = require('../lib/meal/norm');
 const axios = require('axios');
 

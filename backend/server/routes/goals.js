@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const auth = require('../middleware/auth');
+const { auth } = require('../middleware/auth');
 const LifestyleGoal = require('../models/Goal');
 const GoalAlignedDay = require('../models/GoalAlignedDay');
 const GoalAlignedDayService = require('../services/goalAlignedDayService');

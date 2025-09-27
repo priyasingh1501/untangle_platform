@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const auth = require('../middleware/auth');
+const { auth } = require('../middleware/auth');
 const MindfulnessCheckin = require('../models/MindfulnessCheckin');
 
 // Helper function to add mindfulness reflection as a journal entry

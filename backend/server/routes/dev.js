@@ -6,7 +6,7 @@ const csv = require('csv-parser');
 const { Readable } = require('stream');
 const FoodItem = require('../models/FoodItem');
 const RecipeTemplate = require('../models/RecipeTemplate');
-const auth = require('../middleware/auth');
+const { auth } = require('../middleware/auth');
 const { foldName, parseTags } = require('../lib/meal/norm');
 
 /**

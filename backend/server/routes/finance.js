@@ -3,7 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const { Expense, Income } = require('../models/Finance');
 const ExpenseGoal = require('../models/ExpenseGoal');
-const auth = require('../middleware/auth');
+const { auth } = require('../middleware/auth');
 
 // Configure multer for file uploads
 const upload = multer({

@@ -5,11 +5,16 @@ const { securityLogger } = require('../config/logger');
 
 class JWTService {
   constructor() {
-    this.accessTokenSecret = process.env.JWT_SECRET;
-    this.refreshTokenSecret = process.env.JWT_REFRESH_SECRET;
+    this.accessTokenSecret = process.env.JWT_SECRET || 'fallback-jwt-secret-for-development-only';
+    this.refreshTokenSecret = process.env.JWT_REFRESH_SECRET || 'fallback-refresh-secret-for-development-only';
     
     if (!this.accessTokenSecret || !this.refreshTokenSecret) {
       throw new Error('JWT secrets not configured');
+    }
+    
+    // Warn if using fallback secrets
+    if (this.accessTokenSecret === 'fallback-jwt-secret-for-development-only') {
+      console.warn('⚠️ Using fallback JWT secret. Set JWT_SECRET environment variable for production.');
     }
   }
 

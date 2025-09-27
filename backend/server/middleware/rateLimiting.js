@@ -5,41 +5,84 @@ const { securityLogger } = require('../config/logger');
 // Memory store for rate limiting (use Redis in production)
 const store = new Map();
 
-// Custom store implementation
-const customStore = {
-  increment: (key, cb) => {
-    const now = Date.now();
-    const windowMs = securityConfig.rateLimit.windowMs;
-    
-    if (!store.has(key)) {
-      store.set(key, { count: 1, resetTime: now + windowMs });
-      return cb(null, 1, Date.now() + windowMs);
-    }
-    
-    const record = store.get(key);
-    
-    if (now > record.resetTime) {
-      // Reset window
-      store.set(key, { count: 1, resetTime: now + windowMs });
-      return cb(null, 1, now + windowMs);
-    }
-    
-    record.count++;
-    return cb(null, record.count, record.resetTime);
-  },
+// Custom store implementation factory - each call creates a new store instance
+const createCustomStore = (prefix) => {
+  const store = new Map();
   
-  decrement: (key, cb) => {
-    if (store.has(key)) {
-      const record = store.get(key);
-      record.count = Math.max(0, record.count - 1);
+  return {
+    increment: (key, cb) => {
+      try {
+        if (typeof cb !== 'function') {
+          console.error('Rate limit store increment: cb is not a function', typeof cb, cb);
+          return;
+        }
+        
+        const now = Date.now();
+        const windowMs = securityConfig.rateLimit.windowMs;
+        const fullKey = `${prefix}_${key}`;
+        
+        if (!store.has(fullKey)) {
+          store.set(fullKey, { count: 1, resetTime: now + windowMs });
+          return cb(null, { totalHits: 1, resetTime: now + windowMs });
+        }
+        
+        const record = store.get(fullKey);
+        
+        if (now > record.resetTime) {
+          // Reset window
+          store.set(fullKey, { count: 1, resetTime: now + windowMs });
+          return cb(null, { totalHits: 1, resetTime: now + windowMs });
+        }
+        
+        record.count++;
+        return cb(null, { totalHits: record.count, resetTime: record.resetTime });
+      } catch (error) {
+        console.error('Rate limit store increment error:', error);
+        if (typeof cb === 'function') {
+          return cb(error);
+        }
+      }
+    },
+    
+    decrement: (key, cb) => {
+      try {
+        if (typeof cb !== 'function') {
+          console.error('Rate limit store decrement: cb is not a function', typeof cb, cb);
+          return;
+        }
+        
+        const fullKey = `${prefix}_${key}`;
+        if (store.has(fullKey)) {
+          const record = store.get(fullKey);
+          record.count = Math.max(0, record.count - 1);
+        }
+        return cb();
+      } catch (error) {
+        console.error('Rate limit store decrement error:', error);
+        if (typeof cb === 'function') {
+          return cb(error);
+        }
+      }
+    },
+    
+    resetKey: (key, cb) => {
+      try {
+        if (typeof cb !== 'function') {
+          console.error('Rate limit store resetKey: cb is not a function', typeof cb, cb);
+          return;
+        }
+        
+        const fullKey = `${prefix}_${key}`;
+        store.delete(fullKey);
+        return cb();
+      } catch (error) {
+        console.error('Rate limit store resetKey error:', error);
+        if (typeof cb === 'function') {
+          return cb(error);
+        }
+      }
     }
-    cb();
-  },
-  
-  resetKey: (key, cb) => {
-    store.delete(key);
-    cb();
-  }
+  };
 };
 
 // General rate limiting
@@ -54,7 +97,6 @@ const generalRateLimit = rateLimit({
   legacyHeaders: false,
   skipSuccessfulRequests: securityConfig.rateLimit.skipSuccessfulRequests,
   skipFailedRequests: securityConfig.rateLimit.skipFailedRequests,
-  store: customStore,
   keyGenerator: (req) => {
     return `general_${req.ip}`;
   },
@@ -86,7 +128,6 @@ const authRateLimit = rateLimit({
   legacyHeaders: false,
   skipSuccessfulRequests: securityConfig.authRateLimit.skipSuccessfulRequests,
   skipFailedRequests: securityConfig.authRateLimit.skipFailedRequests,
-  store: customStore,
   keyGenerator: (req) => {
     return `auth_${req.ip}`;
   },
@@ -117,7 +158,6 @@ const passwordResetRateLimit = rateLimit({
   legacyHeaders: false,
   skipSuccessfulRequests: false,
   skipFailedRequests: false,
-  store: customStore,
   keyGenerator: (req) => {
     return `password_reset_${req.ip}`;
   },
@@ -149,7 +189,6 @@ const fileUploadRateLimit = rateLimit({
   legacyHeaders: false,
   skipSuccessfulRequests: false,
   skipFailedRequests: false,
-  store: customStore,
   keyGenerator: (req) => {
     return `file_upload_${req.user?.userId || req.ip}`;
   },
@@ -181,7 +220,6 @@ const apiRateLimit = rateLimit({
   legacyHeaders: false,
   skipSuccessfulRequests: false,
   skipFailedRequests: false,
-  store: customStore,
   keyGenerator: (req) => {
     return `api_${req.user?.userId || req.ip}`;
   },
@@ -213,7 +251,6 @@ const searchRateLimit = rateLimit({
   legacyHeaders: false,
   skipSuccessfulRequests: false,
   skipFailedRequests: false,
-  store: customStore,
   keyGenerator: (req) => {
     return `search_${req.user?.userId || req.ip}`;
   },
@@ -245,7 +282,6 @@ const dataExportRateLimit = rateLimit({
   legacyHeaders: false,
   skipSuccessfulRequests: false,
   skipFailedRequests: false,
-  store: customStore,
   keyGenerator: (req) => {
     return `data_export_${req.user?.userId}`;
   },
@@ -293,7 +329,6 @@ const dynamicRateLimit = (req, res, next) => {
     legacyHeaders: false,
     skipSuccessfulRequests: securityConfig.rateLimit.skipSuccessfulRequests,
     skipFailedRequests: securityConfig.rateLimit.skipFailedRequests,
-    store: customStore,
     keyGenerator: (req) => {
       return `dynamic_${req.user?.userId || req.ip}`;
     }

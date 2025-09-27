@@ -7,7 +7,7 @@ const simpleParser = mailparser.simpleParser;
 const EmailForwarding = require('../models/EmailForwarding');
 const { Expense } = require('../models/Finance');
 const EmailParsingService = require('../services/emailParsingService');
-const auth = require('../middleware/auth');
+const { auth } = require('../middleware/auth');
 
 // Configure multer for email attachments
 const upload = multer({

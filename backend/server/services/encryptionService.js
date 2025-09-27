@@ -9,9 +9,14 @@ class EncryptionService {
     this.tagLength = securityConfig.encryption.tagLength;
     
     // Get encryption key from environment
-    this.encryptionKey = process.env.ENCRYPTION_KEY;
+    this.encryptionKey = process.env.ENCRYPTION_KEY || 'fallback-encryption-key-for-development-only-32-chars';
     if (!this.encryptionKey) {
       throw new Error('ENCRYPTION_KEY environment variable is required');
+    }
+    
+    // Warn if using fallback key
+    if (this.encryptionKey === 'fallback-encryption-key-for-development-only-32-chars') {
+      console.warn('⚠️ Using fallback encryption key. Set ENCRYPTION_KEY environment variable for production.');
     }
     
     // Convert hex key to buffer

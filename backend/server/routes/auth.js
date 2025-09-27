@@ -1,7 +1,8 @@
 const express = require('express');
 const { body } = require('express-validator');
 const { validationRules, validate } = require('../middleware/validation');
-const { auth, authRateLimit, passwordResetRateLimit } = require('../middleware/auth');
+const { auth, authRateLimit } = require('../middleware/auth');
+const { passwordResetRateLimit } = require('../middleware/rateLimiting');
 const { securityLogger } = require('../config/logger');
 const { jwtService, tokenBlacklist, sessionService } = require('../middleware/auth');
 const TwoFactorService = require('../services/twoFactorService');
