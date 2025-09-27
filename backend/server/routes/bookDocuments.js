@@ -1,35 +1,11 @@
 const express = require('express');
 const BookDocument = require('../models/BookDocument');
 const User = require('../models/User');
+const { auth } = require('../middleware/auth');
 const router = express.Router();
 
-// Middleware to verify JWT token
-const authenticateToken = async (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-
-  if (!token) {
-    return res.status(401).json({ message: 'Access token required' });
-  }
-
-  try {
-    const jwt = require('jsonwebtoken');
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-    const user = await User.findById(decoded.userId);
-    
-    if (!user || !user.isActive) {
-      return res.status(401).json({ message: 'Invalid or inactive user' });
-    }
-    
-    req.user = user;
-    next();
-  } catch (error) {
-    return res.status(403).json({ message: 'Invalid token' });
-  }
-};
-
 // Get all book documents for a user
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', auth, async (req, res) => {
   try {
     const { status, category, search } = req.query;
     let query = { userId: req.user._id };
@@ -62,7 +38,7 @@ router.get('/', authenticateToken, async (req, res) => {
 });
 
 // Get a specific book document
-router.get('/:id', authenticateToken, async (req, res) => {
+router.get('/:id', auth, async (req, res) => {
   try {
     const bookDocument = await BookDocument.findOne({
       _id: req.params.id,
@@ -81,7 +57,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 });
 
 // Create a new book document
-router.post('/', authenticateToken, async (req, res) => {
+router.post('/', auth, async (req, res) => {
   try {
     const {
       title,
@@ -127,7 +103,7 @@ router.post('/', authenticateToken, async (req, res) => {
 });
 
 // Update a book document
-router.put('/:id', authenticateToken, async (req, res) => {
+router.put('/:id', auth, async (req, res) => {
   try {
     const updates = req.body;
     
@@ -152,7 +128,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
 });
 
 // Delete a book document
-router.delete('/:id', authenticateToken, async (req, res) => {
+router.delete('/:id', auth, async (req, res) => {
   try {
     const bookDocument = await BookDocument.findOneAndDelete({
       _id: req.params.id,
@@ -171,7 +147,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 });
 
 // Add a note to a book document
-router.post('/:id/notes', authenticateToken, async (req, res) => {
+router.post('/:id/notes', auth, async (req, res) => {
   try {
     const { content, location, tags, isImportant, isQuote } = req.body;
     
@@ -212,7 +188,7 @@ router.post('/:id/notes', authenticateToken, async (req, res) => {
 });
 
 // Update a note
-router.put('/:id/notes/:noteId', authenticateToken, async (req, res) => {
+router.put('/:id/notes/:noteId', auth, async (req, res) => {
   try {
     const { content, location, tags, isImportant, isQuote } = req.body;
     
@@ -253,7 +229,7 @@ router.put('/:id/notes/:noteId', authenticateToken, async (req, res) => {
 });
 
 // Delete a note
-router.delete('/:id/notes/:noteId', authenticateToken, async (req, res) => {
+router.delete('/:id/notes/:noteId', auth, async (req, res) => {
   try {
     const bookDocument = await BookDocument.findOne({
       _id: req.params.id,
@@ -283,7 +259,7 @@ router.delete('/:id/notes/:noteId', authenticateToken, async (req, res) => {
 });
 
 // Update reading progress
-router.put('/:id/progress', authenticateToken, async (req, res) => {
+router.put('/:id/progress', auth, async (req, res) => {
   try {
     const { currentPage, totalPages } = req.body;
     
@@ -309,7 +285,7 @@ router.put('/:id/progress', authenticateToken, async (req, res) => {
 });
 
 // Get user's default journal
-router.get('/journal/default', authenticateToken, async (req, res) => {
+router.get('/journal/default', auth, async (req, res) => {
   try {
     let journal = await BookDocument.findOne({
       userId: req.user._id,
@@ -338,7 +314,7 @@ router.get('/journal/default', authenticateToken, async (req, res) => {
 });
 
 // Get all quote notes for dashboard
-router.get('/quotes/all', authenticateToken, async (req, res) => {
+router.get('/quotes/all', auth, async (req, res) => {
   try {
     const bookDocuments = await BookDocument.find({ userId: req.user._id });
     
@@ -370,7 +346,7 @@ router.get('/quotes/all', authenticateToken, async (req, res) => {
 });
 
 // Get book statistics
-router.get('/stats/overview', authenticateToken, async (req, res) => {
+router.get('/stats/overview', auth, async (req, res) => {
   try {
     const stats = await BookDocument.aggregate([
       { $match: { userId: req.user._id } },

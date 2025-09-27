@@ -5,46 +5,15 @@ const Journal = require('../models/Journal');
 const Expense = require('../models/Finance');
 const Schedule = require('../models/TimeManagement');
 const ContentCollection = require('../models/Content');
+const { auth } = require('../middleware/auth');
 
 // OpenAI service will be initialized dynamically when needed
 let OpenAIService = null;
 
 const router = express.Router();
 
-// Middleware to verify JWT token
-const authenticateToken = async (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-
-  if (!token) {
-    return res.status(401).json({ message: 'Access token required' });
-  }
-
-  try {
-    const jwt = require('jsonwebtoken');
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-    const User = require('../models/User');
-    const user = await User.findById(decoded.userId);
-    
-    if (!user || !user.isActive) {
-      return res.status(401).json({ message: 'Invalid or inactive user' });
-    }
-    
-    console.log('🔍 AI Chat auth - User object:', {
-      _id: user._id,
-      email: user.email,
-      isActive: user.isActive
-    });
-    
-    req.user = user;
-    next();
-  } catch (error) {
-    return res.status(403).json({ message: 'Invalid token' });
-  }
-};
-
 // Get or create AI chat session
-router.get('/session', authenticateToken, async (req, res) => {
+router.get('/session', auth, async (req, res) => {
   try {
     let aiChat = await AiChat.findOne({ userId: req.user._id });
     
@@ -90,7 +59,7 @@ router.get('/session', authenticateToken, async (req, res) => {
 });
 
 // Send message and get AI response
-router.post('/chat', authenticateToken, async (req, res) => {
+router.post('/chat', auth, async (req, res) => {
   try {
     console.log('🔍 Chat endpoint hit with message:', req.body);
     const { message, context } = req.body;
@@ -358,7 +327,7 @@ router.post('/chat', authenticateToken, async (req, res) => {
 });
 
 // Get conversation history
-router.get('/conversation', authenticateToken, async (req, res) => {
+router.get('/conversation', auth, async (req, res) => {
   try {
     const { page = 1, limit = 20 } = req.query;
     
@@ -388,7 +357,7 @@ router.get('/conversation', authenticateToken, async (req, res) => {
 });
 
 // Update user profile and preferences
-router.put('/profile', authenticateToken, async (req, res) => {
+router.put('/profile', auth, async (req, res) => {
   try {
     const { goals, interests, patterns, contentTaste, preferences } = req.body;
     
@@ -417,7 +386,7 @@ router.put('/profile', authenticateToken, async (req, res) => {
 });
 
 // Get AI insights and recommendations
-router.get('/insights', authenticateToken, async (req, res) => {
+router.get('/insights', auth, async (req, res) => {
   try {
     const aiChat = await AiChat.findOne({ userId: req.user._id });
     if (!aiChat) {
@@ -439,7 +408,7 @@ router.get('/insights', authenticateToken, async (req, res) => {
 });
 
 // Get content recommendations based on user profile
-router.get('/recommendations', authenticateToken, async (req, res) => {
+router.get('/recommendations', auth, async (req, res) => {
   try {
     const { type, category, limit = 5 } = req.query;
     
@@ -1579,7 +1548,7 @@ async function generateContentSuggestions(userProfile, message) {
 }
 
 // Handle content confirmation and add to user's lists
-router.post('/confirm-content', authenticateToken, async (req, res) => {
+router.post('/confirm-content', auth, async (req, res) => {
   try {
     const { contentType, title, action } = req.body; // action: 'add_to_watchlist', 'add_to_reading_list', etc.
     

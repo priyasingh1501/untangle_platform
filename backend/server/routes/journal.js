@@ -1,43 +1,15 @@
 const express = require('express');
-const Journal = require('../models/Journal');
-const JournalTrends = require('../models/JournalTrends');
-const JournalAnalysisService = require('../services/journalAnalysisService');
+const { auth } = require('../middleware/auth');
+const ServiceFactory = require('../services/serviceFactory');
 const router = express.Router();
 
-const analysisService = new JournalAnalysisService();
-
-// Middleware to verify JWT token
-const authenticateToken = async (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-
-  if (!token) {
-    return res.status(401).json({ message: 'Access token required' });
-  }
-
-  try {
-    const jwt = require('jsonwebtoken');
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-    const normalizedUserId = decoded.userId || decoded.id || decoded._id || decoded.sub;
-    if (!normalizedUserId) {
-      return res.status(401).json({ message: 'Invalid token payload' });
-    }
-    const User = require('../models/User');
-    const user = await User.findById(normalizedUserId);
-    
-    if (!user || !user.isActive) {
-      return res.status(401).json({ message: 'Invalid or inactive user' });
-    }
-    
-    req.user = user;
-    next();
-  } catch (error) {
-    return res.status(403).json({ message: 'Invalid token' });
-  }
-};
+// Get services through dependency injection
+const { Journal, JournalTrends } = ServiceFactory.getModels();
+const { JournalAnalysisService } = ServiceFactory.getServices();
+const analysisService = ServiceFactory.get('JournalAnalysisService');
 
 // Get user's journal
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', auth, async (req, res) => {
   try {
     let journal = await Journal.findOne({ userId: req.user._id });
     
@@ -64,7 +36,7 @@ router.get('/', authenticateToken, async (req, res) => {
 });
 
 // Add new journal entry
-router.post('/entries', authenticateToken, async (req, res) => {
+router.post('/entries', auth, async (req, res) => {
   try {
     console.log('Creating journal entry for user:', req.user._id);
     console.log('Entry data:', { title: req.body.title, content: req.body.content?.substring(0, 50) + '...' });
@@ -160,7 +132,7 @@ router.post('/entries', authenticateToken, async (req, res) => {
 });
 
 // Update journal entry
-router.put('/entries/:entryId', authenticateToken, async (req, res) => {
+router.put('/entries/:entryId', auth, async (req, res) => {
   try {
     const { entryId } = req.params;
     const updates = req.body;
@@ -187,7 +159,7 @@ router.put('/entries/:entryId', authenticateToken, async (req, res) => {
 });
 
 // Delete journal entry
-router.delete('/entries/:entryId', authenticateToken, async (req, res) => {
+router.delete('/entries/:entryId', auth, async (req, res) => {
   try {
     const { entryId } = req.params;
     
@@ -212,7 +184,7 @@ router.delete('/entries/:entryId', authenticateToken, async (req, res) => {
 });
 
 // Get journal entry by ID
-router.get('/entries/:entryId', authenticateToken, async (req, res) => {
+router.get('/entries/:entryId', auth, async (req, res) => {
   try {
     const { entryId } = req.params;
     
@@ -235,7 +207,7 @@ router.get('/entries/:entryId', authenticateToken, async (req, res) => {
 });
 
 // Get journal entries with filters
-router.get('/entries', authenticateToken, async (req, res) => {
+router.get('/entries', auth, async (req, res) => {
   try {
     const { type, mood, tags, startDate, endDate, page = 1, limit = 20 } = req.query;
     
@@ -295,7 +267,7 @@ router.get('/entries', authenticateToken, async (req, res) => {
 });
 
 // Update journal settings
-router.put('/settings', authenticateToken, async (req, res) => {
+router.put('/settings', auth, async (req, res) => {
   try {
     const { defaultPrivacy, reminderTime, enableReminders, journalingPrompts } = req.body;
     
@@ -325,7 +297,7 @@ router.put('/settings', authenticateToken, async (req, res) => {
 });
 
 // Get journal statistics
-router.get('/stats', authenticateToken, async (req, res) => {
+router.get('/stats', auth, async (req, res) => {
   try {
     const journal = await Journal.findOne({ userId: req.user._id });
     if (!journal) {
@@ -373,7 +345,7 @@ router.get('/stats', authenticateToken, async (req, res) => {
 });
 
 // Analyze a specific journal entry
-router.post('/entries/:entryId/analyze', authenticateToken, async (req, res) => {
+router.post('/entries/:entryId/analyze', auth, async (req, res) => {
   try {
     const { entryId } = req.params;
     
@@ -408,7 +380,7 @@ router.post('/entries/:entryId/analyze', authenticateToken, async (req, res) => 
 });
 
 // Get trend analysis for user's journal
-router.get('/trends', authenticateToken, async (req, res) => {
+router.get('/trends', auth, async (req, res) => {
   try {
     const { limit = 10, timeRange = 'month' } = req.query;
     const userId = req.user._id;
@@ -524,7 +496,7 @@ router.get('/trends', authenticateToken, async (req, res) => {
 });
 
 // Force refresh trends (bypass cache)
-router.post('/trends/refresh', authenticateToken, async (req, res) => {
+router.post('/trends/refresh', auth, async (req, res) => {
   try {
     const { timeRange = 'month', limit = 10 } = req.body;
     const userId = req.user._id;
@@ -593,7 +565,7 @@ router.post('/trends/refresh', authenticateToken, async (req, res) => {
 });
 
 // Analyze all entries without analysis
-router.post('/analyze-all', authenticateToken, async (req, res) => {
+router.post('/analyze-all', auth, async (req, res) => {
   try {
     const journal = await Journal.findOne({ userId: req.user._id });
     if (!journal) {

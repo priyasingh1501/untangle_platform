@@ -1,17 +1,19 @@
 const express = require('express');
 const router = express.Router();
-const Meal = require('../models/Meal');
-const FoodItem = require('../models/FoodItem');
 const { auth } = require('../middleware/auth');
+const ServiceFactory = require('../services/serviceFactory');
 const { aggregateNutrients } = require('../lib/meal/aggregate');
 const { inferBadges } = require('../lib/meal/badges');
 const { mindfulMealScore } = require('../lib/meal/score');
 const { computeMealEffects } = require('../lib/meal/effects');
-const OpenAIService = require('../services/openaiService');
-const axios = require('axios');
+
+// Get services through dependency injection
+const { Meal, FoodItem } = ServiceFactory.getModels();
+const { OpenAIService } = ServiceFactory.getServices();
+const { axios } = ServiceFactory.getExternalDeps();
 
 // Initialize AI service
-const aiService = new OpenAIService();
+const aiService = ServiceFactory.get('OpenAIService');
 
 // Test AI service initialization
 console.log('🤖 AI Service initialized:', {

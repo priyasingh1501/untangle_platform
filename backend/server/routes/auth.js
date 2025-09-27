@@ -3,18 +3,22 @@ const { body } = require('express-validator');
 const { validationRules, validate } = require('../middleware/validation');
 const { auth, authRateLimit } = require('../middleware/auth');
 const { passwordResetRateLimit } = require('../middleware/rateLimiting');
-const { securityLogger } = require('../config/logger');
-const { jwtService, tokenBlacklist, sessionService } = require('../middleware/auth');
-const TwoFactorService = require('../services/twoFactorService');
-const EncryptionService = require('../services/encryptionService');
-const GDPRService = require('../services/gdprService');
-const User = require('../models/User');
-const crypto = require('crypto');
+const ServiceFactory = require('../services/serviceFactory');
 
 const router = express.Router();
-const twoFactorService = new TwoFactorService();
-const encryptionService = new EncryptionService();
-const gdprService = new GDPRService();
+
+// Get services through dependency injection
+const { User } = ServiceFactory.getModels();
+const { TwoFactorService, EncryptionService, GDPRService, JWTService, TokenBlacklistService, SessionService } = ServiceFactory.getServices();
+const { securityLogger } = ServiceFactory.getLoggers();
+const { crypto } = ServiceFactory.getExternalDeps();
+
+const twoFactorService = ServiceFactory.get('TwoFactorService');
+const encryptionService = ServiceFactory.get('EncryptionService');
+const gdprService = ServiceFactory.get('GDPRService');
+const jwtService = ServiceFactory.get('JWTService');
+const tokenBlacklist = ServiceFactory.get('TokenBlacklistService');
+const sessionService = ServiceFactory.get('SessionService');
 
 // Register new user
 router.post('/register', 
@@ -346,14 +350,14 @@ router.post('/logout',
 
       // Remove session
       if (sessionId && req.user) {
-        const user = await User.findById(req.user.userId);
+        const user = await User.findById(req.user._id);
         if (user) {
           user.removeActiveSession(sessionId);
           await user.save();
         }
       }
 
-      securityLogger.logAPIUsage(req.user.userId, 'logout', 'POST', req.ip, req.get('User-Agent'));
+      securityLogger.logAPIUsage(req.user._id, 'logout', 'POST', req.ip, req.get('User-Agent'));
 
       res.json({
         message: 'Logout successful'
@@ -371,7 +375,7 @@ router.post('/logout',
 // Get user profile
 router.get('/profile', auth, async (req, res) => {
   try {
-    const user = await User.findById(req.user.userId);
+    const user = await User.findById(req.user._id);
     if (!user) {
       return res.status(404).json({
         message: 'User not found',
@@ -399,7 +403,7 @@ router.put('/change-password',
   async (req, res) => {
     try {
       const { currentPassword, newPassword } = req.body;
-      const user = await User.findById(req.user.userId);
+      const user = await User.findById(req.user._id);
 
       // Verify current password
       const isValidPassword = await user.comparePassword(currentPassword);
@@ -527,7 +531,7 @@ router.post('/2fa/setup',
   auth,
   async (req, res) => {
     try {
-      const user = await User.findById(req.user.userId);
+      const user = await User.findById(req.user._id);
       
       if (user.twoFactorEnabled) {
         return res.status(400).json({
@@ -561,7 +565,7 @@ router.post('/2fa/enable',
   async (req, res) => {
     try {
       const { secret, token, backupCodes } = req.body;
-      const user = await User.findById(req.user.userId);
+      const user = await User.findById(req.user._id);
 
       const result = await twoFactorService.enable2FA(user, secret, token, backupCodes);
 
@@ -582,7 +586,7 @@ router.post('/2fa/disable',
   async (req, res) => {
     try {
       const { token } = req.body;
-      const user = await User.findById(req.user.userId);
+      const user = await User.findById(req.user._id);
 
       const result = await twoFactorService.disable2FA(user, token);
 
@@ -602,7 +606,7 @@ router.get('/2fa/status',
   auth,
   async (req, res) => {
     try {
-      const user = await User.findById(req.user.userId);
+      const user = await User.findById(req.user._id);
       const status = twoFactorService.get2FAStatus(user);
 
       res.json(status);
@@ -622,7 +626,7 @@ router.post('/2fa/backup-codes',
   async (req, res) => {
     try {
       const { token } = req.body;
-      const user = await User.findById(req.user.userId);
+      const user = await User.findById(req.user._id);
 
       const result = await twoFactorService.generateNewBackupCodes(user, token);
 
@@ -642,7 +646,7 @@ router.get('/gdpr/data',
   auth,
   async (req, res) => {
     try {
-      const userData = await gdprService.getUserData(req.user.userId);
+      const userData = await gdprService.getUserData(req.user._id);
       res.json(userData);
     } catch (error) {
       console.error('GDPR data export error:', error);
@@ -660,7 +664,7 @@ router.put('/gdpr/consent',
   async (req, res) => {
     try {
       const { preferences } = req.body;
-      const result = await gdprService.updateConsentPreferences(req.user.userId, preferences);
+      const result = await gdprService.updateConsentPreferences(req.user._id, preferences);
       res.json(result);
     } catch (error) {
       console.error('GDPR consent update error:', error);
@@ -678,7 +682,7 @@ router.post('/gdpr/delete',
   async (req, res) => {
     try {
       const { reason } = req.body;
-      const result = await gdprService.requestDataDeletion(req.user.userId, reason);
+      const result = await gdprService.requestDataDeletion(req.user._id, reason);
       res.json(result);
     } catch (error) {
       console.error('GDPR deletion request error:', error);
@@ -695,7 +699,7 @@ router.get('/sessions',
   auth,
   async (req, res) => {
     try {
-      const user = await User.findById(req.user.userId);
+      const user = await User.findById(req.user._id);
       const sessions = user.activeSessions || [];
 
       res.json({
@@ -723,7 +727,7 @@ router.delete('/sessions/:sessionId',
   async (req, res) => {
     try {
       const { sessionId } = req.params;
-      const user = await User.findById(req.user.userId);
+      const user = await User.findById(req.user._id);
 
       user.removeActiveSession(sessionId);
       await user.save();

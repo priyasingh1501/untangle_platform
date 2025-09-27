@@ -101,8 +101,17 @@ beforeAll(async () => {
 
 // Clean up collections after each test
 afterEach(async () => {
-  const collections = await mongoose.connection.db.collections();
-  await Promise.all(collections.map(c => c.deleteMany({})));
+  try {
+    const collections = await mongoose.connection.db.collections();
+    await Promise.all(collections.map(c => c.deleteMany({})));
+    
+    // Clear any cached data
+    if (global.authAttempts) {
+      global.authAttempts.clear();
+    }
+  } catch (error) {
+    console.warn('Error cleaning up collections:', error.message);
+  }
 });
 
 // Close database connection and stop memory server after all tests

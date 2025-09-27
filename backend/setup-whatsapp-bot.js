@@ -189,3 +189,4 @@ CORS_ORIGIN=http://localhost:3000,https://your-frontend-domain.com
 
 // Run setup
 setupWhatsAppBot().catch(console.error);
+

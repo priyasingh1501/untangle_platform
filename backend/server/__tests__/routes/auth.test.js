@@ -58,7 +58,7 @@ describe('Auth Routes', () => {
       expect(response.status).toBe(201);
       expect(response.body.message).toBe('User registered successfully');
       expect(response.body.user.email).toBe(userData.email);
-      expect(response.body.token).toBeDefined();
+      expect(response.body.tokens).toBeDefined();
     });
 
     test('should return error if user already exists', async () => {
@@ -189,6 +189,7 @@ describe('Auth Routes', () => {
 
       console.log('Profile response:', response.status, response.body);
       console.log('Available routes:', app._router?.stack?.map(r => r.route?.path).filter(Boolean));
+      // console.log('Auth routes:', authRoutes.stack?.map(r => r.route?.path));
       expect(response.status).toBe(200);
       expect(response.body.user.email).toBe('profile@example.com');
     });
@@ -292,7 +293,7 @@ describe('Auth Routes', () => {
         .set('Authorization', `Bearer ${token}`);
 
       expect(response.status).toBe(200);
-      expect(response.body.token).toBeDefined();
+      expect(response.body.tokens).toBeDefined();
     });
 
     test('should return error for invalid token', async () => {

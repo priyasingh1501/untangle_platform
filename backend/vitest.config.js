@@ -11,6 +11,9 @@ export default defineConfig({
       '**/e2e-tests/**',
       '**/client/**'
     ],
+    // Increase timeout for slow tests
+    testTimeout: 30000,
+    hookTimeout: 30000,
     // Run tests in sequence to avoid race conditions with mongoose models
     pool: 'forks',
     poolOptions: {

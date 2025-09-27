@@ -188,3 +188,4 @@ module.exports = {
   logger,
   securityLogger
 };
+

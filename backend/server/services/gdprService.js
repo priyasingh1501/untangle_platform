@@ -412,3 +412,4 @@ class GDPRService {
 }
 
 module.exports = GDPRService;
+

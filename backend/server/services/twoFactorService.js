@@ -272,3 +272,4 @@ class TwoFactorService {
 }
 
 module.exports = TwoFactorService;
+

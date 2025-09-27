@@ -1,10 +1,16 @@
 // Load environment variables FIRST, before any other imports
 const dotenv = require('dotenv');
 const path = require('path');
+const ServiceFactory = require('./services/serviceFactory');
 
 // Load environment variables from project root directory
 console.log('🔍 Loading .env from project root directory');
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
+
+// Get facades and config
+const ConfigFacade = ServiceFactory.get('ConfigFacade');
+const LoggerFacade = ServiceFactory.get('LoggerFacade');
+const appConfig = require('./config/appConfig');
 
 const express = require('express');
 const cors = require('cors');
@@ -65,7 +71,7 @@ console.log('🔍 DEPLOY TRIGGER:', new Date().toISOString());
 console.log('🔍 FORCE REBUILD:', 'MONGODB CONNECTION TEST - ' + Math.random().toString(36).substr(2, 9));
 
 const app = express();
-const PORT = process.env.PORT || 5002;
+const PORT = appConfig.get('app.port');
 
 // Security middleware (order matters!)
 app.use(helmet(securityConfig.helmet));
@@ -76,7 +82,7 @@ app.set('trust proxy', 1);
 
 // Request logging
 app.use((req, res, next) => {
-  logger.info(`${req.method} ${req.path}`, {
+  LoggerFacade.info(`${req.method} ${req.path}`, {
     ip: req.ip,
     userAgent: req.get('User-Agent'),
     timestamp: new Date().toISOString()
@@ -187,47 +193,18 @@ app.get('/api/health', (req, res) => {
 
 // Serve static files in production
 if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../client/build')));
+  app.use(express.static(path.join(__dirname, '../../web/client/build')));
   app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../client/build', 'index.html'));
+    res.sendFile(path.join(__dirname, '../../web/client/build', 'index.html'));
   });
 }
 
 // Error handling middleware
+const { ErrorHandler } = require('./utils/errorHandler');
+
 app.use((err, req, res, next) => {
-  logger.error('Unhandled error:', {
-    error: err.message,
-    stack: err.stack,
-    path: req.path,
-    method: req.method,
-    ip: req.ip,
-    userAgent: req.get('User-Agent')
-  });
-
-  // Log security-related errors
-  if (err.status === 401 || err.status === 403 || err.status === 429) {
-    securityLogger.logSuspiciousActivity(
-      req.user?.userId || 'anonymous',
-      'error_response',
-      { 
-        error: err.message, 
-        status: err.status,
-        path: req.path 
-      },
-      req.ip
-    );
-  }
-
-  // Don't expose internal errors in production
-  const isDevelopment = process.env.NODE_ENV === 'development';
-  const message = isDevelopment ? err.message : 'Internal server error';
-  const stack = isDevelopment ? err.stack : undefined;
-
-  res.status(err.status || 500).json({ 
-    message,
-    ...(stack && { stack }),
-    code: err.code || 'INTERNAL_ERROR'
-  });
+  const { statusCode, response } = ErrorHandler.handleError(err, req);
+  res.status(statusCode).json(response);
 });
 
 // Test endpoint to verify full server is running

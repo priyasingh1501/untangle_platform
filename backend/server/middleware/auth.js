@@ -12,8 +12,8 @@ const auth = async (req, res, next) => {
   try {
     // Skip authentication in test environment
     if (process.env.NODE_ENV === 'test' || process.env.DISABLE_AUTH === 'true') {
-      // Set a mock user for tests
-      req.user = { _id: 'test-user-id', email: 'test@example.com' };
+      // Set a mock user for tests - use a consistent ObjectId format
+      req.user = { _id: '507f1f77bcf86cd799439011', email: 'test@example.com' };
       return next();
     }
 

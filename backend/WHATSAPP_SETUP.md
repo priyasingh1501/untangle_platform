@@ -140,3 +140,4 @@ For issues with the WhatsApp bot:
 2. Verify webhook configuration
 3. Test with simple messages first
 4. Check API rate limits and quotas
+

@@ -402,6 +402,7 @@ const EnhancedJournalTrends = () => {
             )}
           </AnimatePresence>
         </Card>
+        </motion.div>
 
         {/* Topic Analysis with Enhanced Design */}
         <motion.div
@@ -458,6 +459,7 @@ const EnhancedJournalTrends = () => {
             )}
           </AnimatePresence>
         </Card>
+        </motion.div>
 
         {/* Belief Evolution with Enhanced Design */}
         <motion.div
@@ -511,6 +513,7 @@ const EnhancedJournalTrends = () => {
             )}
           </AnimatePresence>
         </Card>
+        </motion.div>
 
         {/* Actionable Insights with Enhanced Design */}
         <motion.div

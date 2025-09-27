@@ -1,35 +1,10 @@
 const express = require('express');
 const ContentCollection = require('../models/Content');
+const { auth } = require('../middleware/auth');
 const router = express.Router();
 
-// Middleware to verify JWT token
-const authenticateToken = async (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-
-  if (!token) {
-    return res.status(401).json({ message: 'Access token required' });
-  }
-
-  try {
-    const jwt = require('jsonwebtoken');
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-    const User = require('../models/User');
-    const user = await User.findById(decoded.userId);
-    
-    if (!user || !user.isActive) {
-      return res.status(401).json({ message: 'Invalid or inactive user' });
-    }
-    
-    req.user = user;
-    next();
-  } catch (error) {
-    return res.status(403).json({ message: 'Invalid token' });
-  }
-};
-
 // Get user's content collections
-router.get('/collections', authenticateToken, async (req, res) => {
+router.get('/collections', auth, async (req, res) => {
   try {
     const collections = await ContentCollection.find({ userId: req.user._id });
     res.json(collections);
@@ -40,7 +15,7 @@ router.get('/collections', authenticateToken, async (req, res) => {
 });
 
 // Create new content collection
-router.post('/collections', authenticateToken, async (req, res) => {
+router.post('/collections', auth, async (req, res) => {
   try {
     const { name, description, type, isPublic } = req.body;
     
@@ -65,7 +40,7 @@ router.post('/collections', authenticateToken, async (req, res) => {
 });
 
 // Get content collection by ID
-router.get('/collections/:collectionId', authenticateToken, async (req, res) => {
+router.get('/collections/:collectionId', auth, async (req, res) => {
   try {
     const { collectionId } = req.params;
     
@@ -86,7 +61,7 @@ router.get('/collections/:collectionId', authenticateToken, async (req, res) => 
 });
 
 // Update content collection
-router.put('/collections/:collectionId', authenticateToken, async (req, res) => {
+router.put('/collections/:collectionId', auth, async (req, res) => {
   try {
     const { collectionId } = req.params;
     const updates = req.body;
@@ -112,7 +87,7 @@ router.put('/collections/:collectionId', authenticateToken, async (req, res) => 
 });
 
 // Delete content collection
-router.delete('/collections/:collectionId', authenticateToken, async (req, res) => {
+router.delete('/collections/:collectionId', auth, async (req, res) => {
   try {
     const { collectionId } = req.params;
     
@@ -133,7 +108,7 @@ router.delete('/collections/:collectionId', authenticateToken, async (req, res) 
 });
 
 // Add content item to collection
-router.post('/collections/:collectionId/items', authenticateToken, async (req, res) => {
+router.post('/collections/:collectionId/items', auth, async (req, res) => {
   try {
     const { collectionId } = req.params;
     const itemData = req.body;
@@ -163,7 +138,7 @@ router.post('/collections/:collectionId/items', authenticateToken, async (req, r
 });
 
 // Update content item
-router.put('/collections/:collectionId/items/:itemId', authenticateToken, async (req, res) => {
+router.put('/collections/:collectionId/items/:itemId', auth, async (req, res) => {
   try {
     const { collectionId, itemId } = req.params;
     const updates = req.body;
@@ -202,7 +177,7 @@ router.put('/collections/:collectionId/items/:itemId', authenticateToken, async 
 });
 
 // Delete content item
-router.delete('/collections/:collectionId/items/:itemId', authenticateToken, async (req, res) => {
+router.delete('/collections/:collectionId/items/:itemId', auth, async (req, res) => {
   try {
     const { collectionId, itemId } = req.params;
     
@@ -231,7 +206,7 @@ router.delete('/collections/:collectionId/items/:itemId', authenticateToken, asy
 });
 
 // Get content items with filters
-router.get('/items', authenticateToken, async (req, res) => {
+router.get('/items', auth, async (req, res) => {
   try {
     const { type, category, status, difficulty, timeInvestment, page = 1, limit = 20 } = req.query;
     
@@ -288,7 +263,7 @@ router.get('/items', authenticateToken, async (req, res) => {
 });
 
 // Get content recommendations
-router.get('/recommendations', authenticateToken, async (req, res) => {
+router.get('/recommendations', auth, async (req, res) => {
   try {
     const { type, category, difficulty, timeInvestment } = req.query;
     
@@ -361,7 +336,7 @@ router.get('/recommendations', authenticateToken, async (req, res) => {
 });
 
 // Get content statistics
-router.get('/stats', authenticateToken, async (req, res) => {
+router.get('/stats', auth, async (req, res) => {
   try {
     const collections = await ContentCollection.find({ userId: req.user._id });
     

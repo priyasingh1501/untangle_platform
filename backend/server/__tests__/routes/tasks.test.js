@@ -24,19 +24,22 @@ describe('Tasks Routes', () => {
     await Task.deleteMany({});
     await LifestyleGoal.deleteMany({});
     await User.deleteMany({});
+    mockUserId = null;
   });
 
   // Helper function to get a real JWT token
   const getAuthToken = async () => {
-    // Create a test user
+    // Use consistent test user ID that matches auth bypass
+    mockUserId = '507f1f77bcf86cd799439011';
+    
+    // Create a test user with the same ID
     const user = await User.create({
+      _id: mockUserId,
       email: 'test@example.com',
-      password: 'password123',
+      password: 'Password123!',
       firstName: 'Test',
       lastName: 'User'
     });
-
-    mockUserId = user._id;
 
     // Login to get a real token
     const loginResponse = await request(app)
@@ -77,6 +80,8 @@ describe('Tasks Routes', () => {
         .get('/api/tasks')
         .set('Authorization', `Bearer ${token}`);
 
+      console.log('Tasks response:', response.status, response.body);
+      console.log('Mock user ID:', mockUserId);
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       expect(response.body.tasks).toHaveLength(2);
@@ -549,7 +554,6 @@ describe('Tasks Routes', () => {
 
       console.log('Created tasks:', createdTasks.length);
       console.log('Mock user ID:', mockUserId);
-      console.log('Token user ID:', JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString()).userId);
 
       const response = await request(app)
         .get('/api/tasks/stats')

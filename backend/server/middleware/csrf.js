@@ -244,3 +244,4 @@ module.exports = {
   revokeCSRFToken,
   csrfProtection
 };
+

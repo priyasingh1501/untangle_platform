@@ -1,0 +1,129 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  backend-ci:
+    runs-on: ubuntu-latest
+    
+    services:
+      mongodb:
+        image: mongo:6.0
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: backend/package-lock.json
+    
+    - name: Install dependencies
+      working-directory: ./backend
+      run: npm ci
+    
+    - name: Run linter
+      working-directory: ./backend
+      run: npm run lint
+    
+    - name: Check formatting
+      working-directory: ./backend
+      run: npm run format:check
+    
+    - name: Run type checking
+      working-directory: ./backend
+      run: npm run typecheck
+    
+    - name: Run tests
+      working-directory: ./backend
+      run: npm run test:run
+      env:
+        MONGODB_URI: mongodb://localhost:27017/untangle-test
+        JWT_SECRET: test-secret-key
+        NODE_ENV: test
+    
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./backend/coverage/lcov.info
+        flags: backend
+        name: backend-coverage
+
+  web-ci:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: web/package-lock.json
+    
+    - name: Install dependencies
+      working-directory: ./web
+      run: npm ci
+    
+    - name: Run linter
+      working-directory: ./web
+      run: npm run lint
+    
+    - name: Check formatting
+      working-directory: ./web
+      run: npm run format:check
+    
+    - name: Run type checking
+      working-directory: ./web
+      run: npm run typecheck
+    
+    - name: Run tests
+      working-directory: ./web
+      run: npm run test:run
+    
+    - name: Build
+      working-directory: ./web
+      run: npm run build
+
+  mobile-ci:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: mobile/package-lock.json
+    
+    - name: Install dependencies
+      working-directory: ./mobile
+      run: npm ci
+    
+    - name: Run linter
+      working-directory: ./mobile
+      run: npm run lint
+    
+    - name: Check formatting
+      working-directory: ./mobile
+      run: npm run format:check
+    
+    - name: Run type checking
+      working-directory: ./mobile
+      run: npm run typecheck

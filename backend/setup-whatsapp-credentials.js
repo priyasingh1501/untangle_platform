@@ -174,3 +174,4 @@ async function setupWhatsAppCredentials() {
 
 // Run setup
 setupWhatsAppCredentials().catch(console.error);
+
