@@ -12,8 +12,8 @@ function foldName(str) {
   
   return str
     .toLowerCase()
-    .replace(/[^\w\s]/g, ' ') // Replace punctuation with spaces
-    .replace(/\s+/g, ' ')     // Replace multiple spaces with single space
+    .replace(/[^\w\s]/g, '') // Remove punctuation
+    .replace(/\s+/g, '')     // Remove all spaces
     .trim();
 }
 

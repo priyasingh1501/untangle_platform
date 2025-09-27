@@ -577,7 +577,8 @@ const EnhancedJournalTrends = () => {
               </motion.div>
             )}
           </AnimatePresence>
-        </Card>
+          </Card>
+        </motion.div>
       </div>
     </Card>
   );

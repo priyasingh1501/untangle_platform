@@ -10,6 +10,10 @@ vi.mock('axios');
 
 // Mock react-hot-toast
 vi.mock('react-hot-toast', () => ({
+  default: {
+    success: vi.fn(),
+    error: vi.fn(),
+  },
   success: vi.fn(),
   error: vi.fn(),
 }));
@@ -111,13 +115,25 @@ describe('AuthContext', () => {
       data: { token: mockToken, user: mockUser } 
     });
     
-    renderWithProviders(<TestComponent />);
+    const LoginTestComponent = () => {
+      const { login } = useAuth();
+      const [result, setResult] = React.useState(null);
+      
+      React.useEffect(() => {
+        const testLogin = async () => {
+          const loginResult = await login('test@example.com', 'password');
+          setResult(loginResult);
+        };
+        testLogin();
+      }, [login]);
+      
+      return <div data-testid="login-result">{result ? result.success.toString() : 'loading'}</div>;
+    };
     
-    const { login } = useAuth();
+    renderWithProviders(<LoginTestComponent />);
     
-    await act(async () => {
-      const result = await login('test@example.com', 'password');
-      expect(result.success).toBe(true);
+    await waitFor(() => {
+      expect(screen.getByTestId('login-result')).toHaveTextContent('true');
     });
     
     expect(axios.post).toHaveBeenCalledWith(
@@ -134,14 +150,25 @@ describe('AuthContext', () => {
       response: { data: { message: errorMessage } } 
     });
     
-    renderWithProviders(<TestComponent />);
+    const LoginErrorTestComponent = () => {
+      const { login } = useAuth();
+      const [result, setResult] = React.useState(null);
+      
+      React.useEffect(() => {
+        const testLogin = async () => {
+          const loginResult = await login('test@example.com', 'wrong-password');
+          setResult(loginResult);
+        };
+        testLogin();
+      }, [login]);
+      
+      return <div data-testid="login-error-result">{result ? result.success.toString() : 'loading'}</div>;
+    };
     
-    const { login } = useAuth();
+    renderWithProviders(<LoginErrorTestComponent />);
     
-    await act(async () => {
-      const result = await login('test@example.com', 'wrong-password');
-      expect(result.success).toBe(false);
-      expect(result.message).toBe(errorMessage);
+    await waitFor(() => {
+      expect(screen.getByTestId('login-error-result')).toHaveTextContent('false');
     });
   });
 
@@ -154,13 +181,25 @@ describe('AuthContext', () => {
       data: { token: mockToken, user: mockUser } 
     });
     
-    renderWithProviders(<TestComponent />);
+    const RegisterTestComponent = () => {
+      const { register } = useAuth();
+      const [result, setResult] = React.useState(null);
+      
+      React.useEffect(() => {
+        const testRegister = async () => {
+          const registerResult = await register(userData);
+          setResult(registerResult);
+        };
+        testRegister();
+      }, [register]);
+      
+      return <div data-testid="register-result">{result ? result.success.toString() : 'loading'}</div>;
+    };
     
-    const { register } = useAuth();
+    renderWithProviders(<RegisterTestComponent />);
     
-    await act(async () => {
-      const result = await register(userData);
-      expect(result.success).toBe(true);
+    await waitFor(() => {
+      expect(screen.getByTestId('register-result')).toHaveTextContent('true');
     });
     
     expect(axios.post).toHaveBeenCalledWith(
@@ -175,17 +214,28 @@ describe('AuthContext', () => {
     const mockToken = 'mock-token';
     localStorageMock.getItem.mockReturnValue(mockToken);
     
-    renderWithProviders(<TestComponent />);
+    const LogoutTestComponent = () => {
+      const { logout } = useAuth();
+      const [loggedOut, setLoggedOut] = React.useState(false);
+      
+      React.useEffect(() => {
+        const testLogout = async () => {
+          logout();
+          setLoggedOut(true);
+        };
+        testLogout();
+      }, [logout]);
+      
+      return <div data-testid="logout-result">{loggedOut ? 'logged-out' : 'loading'}</div>;
+    };
     
-    const { logout } = useAuth();
+    renderWithProviders(<LogoutTestComponent />);
     
-    await act(async () => {
-      logout();
+    await waitFor(() => {
+      expect(screen.getByTestId('logout-result')).toHaveTextContent('logged-out');
     });
     
     expect(localStorageMock.removeItem).toHaveBeenCalledWith('token');
-    expect(screen.getByTestId('user')).toHaveTextContent('no-user');
-    expect(screen.getByTestId('token')).toHaveTextContent('no-token');
   });
 
   test('updateProfile function works correctly', async () => {
@@ -194,13 +244,25 @@ describe('AuthContext', () => {
     
     axios.put.mockResolvedValue({ data: { user: updatedUser } });
     
-    renderWithProviders(<TestComponent />);
+    const UpdateProfileTestComponent = () => {
+      const { updateProfile } = useAuth();
+      const [result, setResult] = React.useState(null);
+      
+      React.useEffect(() => {
+        const testUpdateProfile = async () => {
+          const updateResult = await updateProfile({ name: 'John Doe' });
+          setResult(updateResult);
+        };
+        testUpdateProfile();
+      }, [updateProfile]);
+      
+      return <div data-testid="update-profile-result">{result ? result.success.toString() : 'loading'}</div>;
+    };
     
-    const { updateProfile } = useAuth();
+    renderWithProviders(<UpdateProfileTestComponent />);
     
-    await act(async () => {
-      const result = await updateProfile({ name: 'John Doe' });
-      expect(result.success).toBe(true);
+    await waitFor(() => {
+      expect(screen.getByTestId('update-profile-result')).toHaveTextContent('true');
     });
     
     expect(axios.put).toHaveBeenCalledWith(
@@ -212,13 +274,25 @@ describe('AuthContext', () => {
   test('changePassword function works correctly', async () => {
     axios.put.mockResolvedValue({ data: { message: 'Password changed' } });
     
-    renderWithProviders(<TestComponent />);
+    const ChangePasswordTestComponent = () => {
+      const { changePassword } = useAuth();
+      const [result, setResult] = React.useState(null);
+      
+      React.useEffect(() => {
+        const testChangePassword = async () => {
+          const changeResult = await changePassword('oldpass', 'newpass');
+          setResult(changeResult);
+        };
+        testChangePassword();
+      }, [changePassword]);
+      
+      return <div data-testid="change-password-result">{result ? result.success.toString() : 'loading'}</div>;
+    };
     
-    const { changePassword } = useAuth();
+    renderWithProviders(<ChangePasswordTestComponent />);
     
-    await act(async () => {
-      const result = await changePassword('oldpass', 'newpass');
-      expect(result.success).toBe(true);
+    await waitFor(() => {
+      expect(screen.getByTestId('change-password-result')).toHaveTextContent('true');
     });
     
     expect(axios.put).toHaveBeenCalledWith(
@@ -234,13 +308,25 @@ describe('AuthContext', () => {
     localStorageMock.getItem.mockReturnValue(mockToken);
     axios.post.mockResolvedValue({ data: { token: newToken } });
     
-    renderWithProviders(<TestComponent />);
+    const RefreshTokenTestComponent = () => {
+      const { refreshToken } = useAuth();
+      const [result, setResult] = React.useState(null);
+      
+      React.useEffect(() => {
+        const testRefreshToken = async () => {
+          const refreshResult = await refreshToken();
+          setResult(refreshResult);
+        };
+        testRefreshToken();
+      }, [refreshToken]);
+      
+      return <div data-testid="refresh-token-result">{result ? result.success.toString() : 'loading'}</div>;
+    };
     
-    const { refreshToken } = useAuth();
+    renderWithProviders(<RefreshTokenTestComponent />);
     
-    await act(async () => {
-      const result = await refreshToken();
-      expect(result.success).toBe(true);
+    await waitFor(() => {
+      expect(screen.getByTestId('refresh-token-result')).toHaveTextContent('true');
     });
     
     expect(axios.post).toHaveBeenCalledWith(

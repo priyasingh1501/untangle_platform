@@ -37,7 +37,7 @@ const securityConfig = {
   // Stricter rate limiting for auth endpoints
   authRateLimit: {
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 5, // limit each IP to 5 requests per windowMs
+    max: 20, // limit each IP to 20 requests per windowMs (increased for production)
     message: 'Too many authentication attempts, please try again later.',
     standardHeaders: true,
     legacyHeaders: false,
@@ -48,7 +48,7 @@ const securityConfig = {
   // CORS Configuration
   cors: {
     origin: process.env.NODE_ENV === 'production' 
-      ? (process.env.ALLOWED_ORIGINS || '').split(',').filter(Boolean)
+      ? (process.env.ALLOWED_ORIGINS || 'https://www.liveuntangle.com,https://liveuntangle.com').split(',').filter(Boolean)
       : ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:8081'],
     credentials: true,
     optionsSuccessStatus: 200,

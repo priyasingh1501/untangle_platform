@@ -1,17 +1,14 @@
 import request from 'supertest';
-import express from 'express';
 import mongoose from 'mongoose';
 import { vi, describe, test, expect, beforeEach, afterEach } from 'vitest';
-import authRoutes from '../../routes/auth.js';
+import { createTestApp } from '../setup.js';
 import User from '../../models/User.js';
 import bcrypt from 'bcryptjs';
 
 // Set JWT_SECRET for testing
 process.env.JWT_SECRET = 'test-secret-key';
 
-const app = express();
-app.use(express.json());
-app.use('/api/auth', authRoutes);
+const app = createTestApp();
 
 describe('Auth Routes', () => {
   beforeEach(() => {

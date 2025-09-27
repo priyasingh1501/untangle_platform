@@ -93,7 +93,23 @@ const Register = () => {
       }
     } catch (error) {
       console.error('Registration error:', error);
-      setErrors({ general: 'Network error. Please check your connection and try again.' });
+      
+      // Handle specific error types
+      if (error.response?.status === 429) {
+        const retryAfter = error.response?.data?.retryAfter;
+        const minutes = retryAfter ? Math.ceil(retryAfter / 60) : 15;
+        setErrors({ 
+          general: `Too many registration attempts. Please wait ${minutes} minutes before trying again.` 
+        });
+      } else if (error.response?.status === 409) {
+        setErrors({ general: 'An account with this email already exists. Please try logging in instead.' });
+      } else if (error.response?.status >= 400 && error.response?.status < 500) {
+        setErrors({ general: error.response?.data?.message || 'Registration failed. Please check your information and try again.' });
+      } else if (error.code === 'NETWORK_ERROR' || !error.response) {
+        setErrors({ general: 'Network error. Please check your connection and try again.' });
+      } else {
+        setErrors({ general: 'An unexpected error occurred. Please try again later.' });
+      }
     } finally {
       setLoading(false);
     }
