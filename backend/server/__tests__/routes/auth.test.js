@@ -25,7 +25,7 @@ describe('Auth Routes', () => {
     // Create a test user
     const user = await User.create({
       email: email,
-      password: 'password123',
+      password: 'Password123!',
       firstName: 'Test',
       lastName: 'User'
     });
@@ -35,7 +35,7 @@ describe('Auth Routes', () => {
       .post('/api/auth/login')
       .send({
         email: email,
-        password: 'password123'
+        password: 'Password123!'
       });
 
     return loginResponse.body.token;
@@ -45,7 +45,7 @@ describe('Auth Routes', () => {
     test('should register a new user successfully', async () => {
       const userData = {
         email: 'newuser@example.com',
-        password: 'password123',
+        password: 'Password123!',
         firstName: 'John',
         lastName: 'Doe'
       };
@@ -54,8 +54,9 @@ describe('Auth Routes', () => {
         .post('/api/auth/register')
         .send(userData);
 
+      console.log('Registration response:', response.status, response.body);
       expect(response.status).toBe(201);
-      expect(response.body.message).toBe('User created successfully');
+      expect(response.body.message).toBe('User registered successfully');
       expect(response.body.user.email).toBe(userData.email);
       expect(response.body.token).toBeDefined();
     });
@@ -63,7 +64,7 @@ describe('Auth Routes', () => {
     test('should return error if user already exists', async () => {
       const userData = {
         email: 'test@example.com',
-        password: 'password123',
+        password: 'Password123!',
         firstName: 'John',
         lastName: 'Doe'
       };
@@ -78,14 +79,14 @@ describe('Auth Routes', () => {
         .post('/api/auth/register')
         .send(userData);
 
-      expect(response.status).toBe(400);
+      expect(response.status).toBe(409);
       expect(response.body.message).toContain('already exists');
     });
 
     test('should return error for invalid email', async () => {
       const userData = {
         email: 'invalid-email',
-        password: 'password123',
+        password: 'Password123!',
         firstName: 'John',
         lastName: 'Doe'
       };
@@ -95,7 +96,7 @@ describe('Auth Routes', () => {
         .send(userData);
 
       expect(response.status).toBe(201);
-      expect(response.body.message).toBe('User created successfully');
+      expect(response.body.message).toBe('User registered successfully');
     });
 
     test('should return error for weak password', async () => {
@@ -110,8 +111,8 @@ describe('Auth Routes', () => {
         .post('/api/auth/register')
         .send(userData);
 
-      expect(response.status).toBe(500);
-      expect(response.body.message).toContain('Error creating user');
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('Validation failed');
     });
   });
 
@@ -119,7 +120,7 @@ describe('Auth Routes', () => {
     test('should login user with valid credentials', async () => {
       const userData = {
         email: 'test@example.com',
-        password: 'password123'
+        password: 'Password123!'
       };
 
       // Create user
@@ -146,7 +147,7 @@ describe('Auth Routes', () => {
       };
 
       // Create user
-      const hashedPassword = await bcrypt.hash('password123', 10);
+      const hashedPassword = await bcrypt.hash('Password123!', 10);
       await User.create({
         email: 'test@example.com',
         password: hashedPassword,
@@ -165,7 +166,7 @@ describe('Auth Routes', () => {
     test('should return error for non-existent user', async () => {
       const userData = {
         email: 'nonexistent@example.com',
-        password: 'password123'
+        password: 'Password123!'
       };
 
       const response = await request(app)
@@ -181,10 +182,13 @@ describe('Auth Routes', () => {
     test('should get user profile with valid token', async () => {
       const token = await getAuthToken('profile@example.com');
 
+      // First, let's test if the route exists at all
       const response = await request(app)
         .get('/api/auth/profile')
         .set('Authorization', `Bearer ${token}`);
 
+      console.log('Profile response:', response.status, response.body);
+      console.log('Available routes:', app._router?.stack?.map(r => r.route?.path).filter(Boolean));
       expect(response.status).toBe(200);
       expect(response.body.user.email).toBe('profile@example.com');
     });
@@ -248,8 +252,8 @@ describe('Auth Routes', () => {
       const token = await getAuthToken('changepass@example.com');
 
       const passwordData = {
-        currentPassword: 'password123',
-        newPassword: 'newPassword123'
+        currentPassword: 'Password123!',
+        newPassword: 'NewPassword123!'
       };
 
       const response = await request(app)
