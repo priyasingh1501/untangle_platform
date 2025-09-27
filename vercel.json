@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "cd web/client && CI=false npm ci && CI=false npm run build",
+  "buildCommand": "cd web/client && npm install && npm run vercel-build",
   "outputDirectory": "web/client/build",
   "installCommand": "cd web/client && npm install",
   "builds": [
