@@ -1,14 +1,13 @@
 {
   "version": 2,
-  "buildCommand": "cd web/client && npm install && npm run vercel-build",
-  "outputDirectory": "web/client/build",
-  "installCommand": "cd web/client && npm install",
   "builds": [
     {
       "src": "web/client/package.json",
       "use": "@vercel/static-build",
       "config": {
-        "distDir": "build"
+        "distDir": "build",
+        "buildCommand": "npm run vercel-build",
+        "installCommand": "npm install"
       }
     }
   ],
