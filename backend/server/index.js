@@ -17,7 +17,6 @@ const cors = require('cors');
 const mongoose = require('mongoose');
 const helmet = require('helmet');
 const compression = require('compression');
-const rateLimit = require('express-rate-limit');
 
 // Import security configuration
 const { securityConfig, validateSecurityConfig } = require('./config/security');
