@@ -1,30 +1,27 @@
 import request from 'supertest';
-import express from 'express';
 import { vi, describe, test, expect, beforeEach, afterEach } from 'vitest';
 import multer from 'multer';
 
-import financeRoutes from '../../routes/finance.js';
-import authRoutes from '../../routes/auth.js';
+import { createTestApp } from '../setup.js';
 import User from '../../models/User.js';
 
 process.env.JWT_SECRET = 'test-secret-key';
+process.env.NODE_ENV = 'development';
+process.env.DISABLE_AUTH = 'false';
 
-const app = express();
-app.use(express.json());
-app.use('/api/auth', authRoutes);
-app.use('/api/finance', financeRoutes);
+const app = createTestApp();
 
 const getAuthToken = async () => {
   await User.create({
     email: 'qa-finance@example.com',
-    password: 'password123',
+    password: 'Password123!',
     firstName: 'QA',
     lastName: 'Finance'
   });
   const login = await request(app)
     .post('/api/auth/login')
-    .send({ email: 'qa-finance@example.com', password: 'password123' });
-  return login.body.token;
+    .send({ email: 'qa-finance@example.com', password: 'Password123!' });
+  return login.body.tokens.accessToken;
 };
 
 describe('Finance: POST /api/finance/analyze-bill', () => {

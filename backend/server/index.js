@@ -99,6 +99,8 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+// Ensure preflight (OPTIONS) requests receive proper CORS headers
+app.options('*', cors(corsOptions));
 
 // Body parsing with size limits
 app.use(express.json({ 

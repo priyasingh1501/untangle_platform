@@ -22,9 +22,18 @@ describe('Auth Middleware', () => {
   let validToken;
 
   beforeEach(async () => {
+    // Set environment variables to disable auth bypass for middleware tests
+    process.env.NODE_ENV = 'development';
+    process.env.DISABLE_AUTH = 'false';
+    
     // Start in-memory MongoDB
     mongoServer = await MongoMemoryServer.create();
     const mongoUri = mongoServer.getUri();
+    
+    // Disconnect existing connection if any
+    if (mongoose.connection.readyState !== 0) {
+      await mongoose.disconnect();
+    }
     await mongoose.connect(mongoUri);
 
     // Create test user
@@ -65,15 +74,29 @@ describe('Auth Middleware', () => {
     // Mock JWT token generation (simplified for testing)
     const jwt = await import('jsonwebtoken');
     validToken = jwt.default.sign(
-      { userId: testUser._id.toString() },
+      { 
+        userId: testUser._id.toString(),
+        email: testUser.email,
+        role: testUser.role,
+        iat: Math.floor(Date.now() / 1000)
+      },
       process.env.JWT_SECRET || 'test-secret',
-      { expiresIn: '1h' }
+      { 
+        expiresIn: '1h',
+        algorithm: 'HS256',
+        issuer: 'untangle-platform',
+        audience: 'untangle-users'
+      }
     );
   });
 
   afterEach(async () => {
     await mongoose.disconnect();
     await mongoServer.stop();
+    
+    // Reset environment variables
+    process.env.NODE_ENV = 'test';
+    process.env.DISABLE_AUTH = 'true';
   });
 
   describe('auth middleware', () => {

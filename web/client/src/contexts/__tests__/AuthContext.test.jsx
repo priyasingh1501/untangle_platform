@@ -58,11 +58,15 @@ describe('AuthContext', () => {
     localStorageMock.removeItem.mockImplementation(() => {});
   });
 
-  test('provides initial state correctly', () => {
+  test('provides initial state correctly', async () => {
     renderWithProviders(<TestComponent />);
     
+    // Wait for the initial state to be set
+    await waitFor(() => {
+      expect(screen.getByTestId('loading')).toHaveTextContent('false');
+    });
+    
     expect(screen.getByTestId('user')).toHaveTextContent('no-user');
-    expect(screen.getByTestId('loading')).toHaveTextContent('true');
     expect(screen.getByTestId('token')).toHaveTextContent('no-token');
     expect(screen.getByTestId('authenticated')).toHaveTextContent('false');
   });
@@ -303,10 +307,15 @@ describe('AuthContext', () => {
 
   test('refreshToken function works correctly', async () => {
     const mockToken = 'mock-token';
+    const mockRefreshToken = 'mock-refresh-token';
     const newToken = 'new-token';
     
-    localStorageMock.getItem.mockReturnValue(mockToken);
-    axios.post.mockResolvedValue({ data: { token: newToken } });
+    localStorageMock.getItem.mockImplementation((key) => {
+      if (key === 'token') return mockToken;
+      if (key === 'refreshToken') return mockRefreshToken;
+      return null;
+    });
+    axios.post.mockResolvedValue({ data: { tokens: { accessToken: newToken, refreshToken: 'new-refresh-token' } } });
     
     const RefreshTokenTestComponent = () => {
       const { refreshToken } = useAuth();
@@ -330,7 +339,8 @@ describe('AuthContext', () => {
     });
     
     expect(axios.post).toHaveBeenCalledWith(
-      expect.stringContaining('/api/auth/refresh-token')
+      expect.stringContaining('/api/auth/refresh'),
+      { refreshToken: mockRefreshToken }
     );
     
     expect(localStorageMock.setItem).toHaveBeenCalledWith('token', newToken);

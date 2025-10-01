@@ -172,7 +172,7 @@ router.post('/', auth, async (req, res) => {
   try {
     console.log('🍽️ MEAL CREATION REQUEST RECEIVED');
     console.log('🍽️ Request body:', JSON.stringify(req.body, null, 2));
-    const userId = req.user.userId;
+    const userId = req.user._id;
     const { ts, items, notes, context, skipAI: skipAIBody } = req.body;
     const skipAI = (req.query.skipAI === 'true') || skipAIBody === true || (req.headers['x-skip-ai'] === 'true');
 
@@ -380,7 +380,7 @@ router.post('/', auth, async (req, res) => {
  */
 router.get('/', auth, async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = req.user._id;
     const { 
       startDate, 
       endDate, 
@@ -452,7 +452,7 @@ router.get('/', auth, async (req, res) => {
  */
 router.get('/:id', auth, async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = req.user._id;
     const { id } = req.params;
 
     const meal = await Meal.findOne({ _id: id, userId })
@@ -484,7 +484,7 @@ router.get('/:id', auth, async (req, res) => {
  */
 router.put('/:id', auth, async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = req.user._id;
     const { id } = req.params;
     const { items, notes, context, presence, energy } = req.body;
 
@@ -580,7 +580,7 @@ router.put('/:id', auth, async (req, res) => {
  */
 router.delete('/:id', auth, async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = req.user._id;
     const { id } = req.params;
 
     const meal = await Meal.findOneAndDelete({ _id: id, userId });
@@ -610,7 +610,7 @@ router.delete('/:id', auth, async (req, res) => {
  */
 router.get('/stats/overview', auth, async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = req.user._id;
     const { startDate, endDate } = req.query;
 
     let query = { userId };
@@ -671,7 +671,7 @@ module.exports = router;
  */
 router.get('/effects/ai', auth, async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = req.user._id;
     const { effect, startDate, endDate } = req.query;
 
     console.log('🤖 AI effect analysis request:', { effect, startDate, endDate, userId });

@@ -24,8 +24,21 @@ export const AuthProvider = ({ children }) => {
       setUser(response.data.user);
     } catch (error) {
       console.error('Error fetching user profile:', error);
-      // Token might be invalid, clear it
-      logout();
+      // If unauthorized, try to refresh token once before logging out
+      if (error?.response?.status === 401) {
+        try {
+          const refreshResult = await refreshToken();
+          if (refreshResult.success) {
+            const retryResponse = await axios.get(buildApiUrl('/api/auth/profile'));
+            setUser(retryResponse.data.user);
+          } else {
+            logout();
+          }
+        } catch (refreshError) {
+          console.error('Profile fetch: token refresh failed:', refreshError);
+          logout();
+        }
+      }
     } finally {
       setLoading(false);
     }
