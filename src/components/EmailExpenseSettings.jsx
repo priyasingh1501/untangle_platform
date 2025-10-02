@@ -113,25 +113,25 @@ const EmailExpenseSettings = () => {
     <div className="space-y-6">
       {/* Forwarding Email Display */}
       <div>
-          <label className="block text-sm font-medium text-gray-900 mb-3">
-            Your Unique Forwarding Email
-          </label>
-          <div className="flex items-center space-x-3 mb-3">
-            <div className="flex-1 bg-gray-50 border border-gray-300 rounded-lg px-4 py-3 font-mono text-sm">
-              {forwardingEmail}
-            </div>
-            <button
-              onClick={copyToClipboard}
-              className="flex items-center space-x-2 px-4 py-2 bg-[#1E49C9] text-white rounded-lg hover:bg-[#1E49C9]/90 transition-colors border border-[rgba(255,255,255,0.2)]"
-            >
-              {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-              <span>{copied ? 'Copied!' : 'Copy'}</span>
-            </button>
+        <label className="block text-sm font-medium text-gray-900 mb-3">
+          Your Unique Forwarding Email
+        </label>
+        <div className="flex items-center space-x-3 mb-3">
+          <div className="flex-1 bg-gray-50 border border-gray-300 rounded-lg px-4 py-3 font-mono text-sm">
+            {forwardingEmail}
           </div>
-          <p className="text-sm text-gray-600">
-            Forward your receipts and invoices to this email address to automatically log expenses.
-          </p>
+          <button
+            onClick={copyToClipboard}
+            className="flex items-center space-x-2 px-4 py-2 bg-[#1E49C9] text-white rounded-lg hover:bg-[#1E49C9]/90 transition-colors border border-[rgba(255,255,255,0.2)]"
+          >
+            {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+            <span>{copied ? 'Copied!' : 'Copy'}</span>
+          </button>
         </div>
+        <p className="text-sm text-gray-600">
+          Forward your receipts and invoices to this email address to automatically log expenses.
+        </p>
+      </div>
 
       {/* Instructions */}
       <div>
@@ -146,96 +146,97 @@ const EmailExpenseSettings = () => {
 
       {/* Settings */}
       <div>
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center space-x-2 mb-4">
-            <Settings className="h-5 w-5 text-[#1E49C9]" />
-            <span>Settings</span>
-          </h3>
+        <h3 className="text-lg font-semibold text-gray-900 flex items-center space-x-2 mb-4">
+          <Settings className="h-5 w-5 text-[#1E49C9]" />
+          <span>Settings</span>
+        </h3>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Auto Parse */}
-            <div className="flex items-center justify-between">
-              <div>
-                <label className="text-sm font-medium text-gray-700">Auto-parse emails</label>
-                <p className="text-xs text-gray-500">Automatically extract expense data from emails</p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={settings.autoParse}
-                  onChange={(e) => handleSettingChange('autoParse', e.target.checked)}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[#1E49C9]/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#1E49C9]"></div>
-              </label>
-            </div>
-
-            {/* Default Category */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Auto Parse */}
+          <div className="flex items-center justify-between">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Default Category</label>
-              <select
-                value={settings.defaultCategory}
-                onChange={(e) => handleSettingChange('defaultCategory', e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#1E49C9]/30"
-              >
-                <option value="food">Food</option>
-                <option value="transportation">Transportation</option>
-                <option value="housing">Housing</option>
-                <option value="utilities">Utilities</option>
-                <option value="healthcare">Healthcare</option>
-                <option value="entertainment">Entertainment</option>
-                <option value="shopping">Shopping</option>
-                <option value="education">Education</option>
-                <option value="travel">Travel</option>
-                <option value="insurance">Insurance</option>
-                <option value="taxes">Taxes</option>
-                <option value="debt">Debt</option>
-                <option value="other">Other</option>
-              </select>
+              <label className="text-sm font-medium text-gray-900">Auto-parse emails</label>
+              <p className="text-xs text-gray-600">Automatically extract expense data from emails</p>
             </div>
-
-            {/* Default Payment Method */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Default Payment Method</label>
-              <select
-                value={settings.defaultPaymentMethod}
-                onChange={(e) => handleSettingChange('defaultPaymentMethod', e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#1E49C9]/30"
-              >
-                <option value="cash">Cash</option>
-                <option value="credit-card">Credit Card</option>
-                <option value="debit-card">Debit Card</option>
-                <option value="bank-transfer">Bank Transfer</option>
-                <option value="digital-wallet">Digital Wallet</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-
-            {/* Require Confirmation */}
-            <div className="flex items-center justify-between">
-              <div>
-                <label className="text-sm font-medium text-gray-700">Require confirmation</label>
-                <p className="text-xs text-gray-500">Review expenses before they're logged</p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={settings.requireConfirmation}
-                  onChange={(e) => handleSettingChange('requireConfirmation', e.target.checked)}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[#1E49C9]/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#1E49C9]"></div>
-              </label>
-            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={settings.autoParse}
+                onChange={(e) => handleSettingChange('autoParse', e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[#1E49C9]/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#1E49C9]"></div>
+            </label>
           </div>
 
-          {/* Notification Settings */}
+          {/* Default Category */}
+          <div>
+            <label className="block text-sm font-medium text-gray-900 mb-2">Default Category</label>
+            <select
+              value={settings.defaultCategory}
+              onChange={(e) => handleSettingChange('defaultCategory', e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#1E49C9]/30"
+            >
+              <option value="food">Food</option>
+              <option value="transportation">Transportation</option>
+              <option value="housing">Housing</option>
+              <option value="utilities">Utilities</option>
+              <option value="healthcare">Healthcare</option>
+              <option value="entertainment">Entertainment</option>
+              <option value="shopping">Shopping</option>
+              <option value="education">Education</option>
+              <option value="travel">Travel</option>
+              <option value="insurance">Insurance</option>
+              <option value="taxes">Taxes</option>
+              <option value="debt">Debt</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+
+          {/* Default Payment Method */}
+          <div>
+            <label className="block text-sm font-medium text-gray-900 mb-2">Default Payment Method</label>
+            <select
+              value={settings.defaultPaymentMethod}
+              onChange={(e) => handleSettingChange('defaultPaymentMethod', e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#1E49C9]/30"
+            >
+              <option value="cash">Cash</option>
+              <option value="credit-card">Credit Card</option>
+              <option value="debit-card">Debit Card</option>
+              <option value="bank-transfer">Bank Transfer</option>
+              <option value="digital-wallet">Digital Wallet</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+
+          {/* Require Confirmation */}
+          <div className="flex items-center justify-between">
+            <div>
+              <label className="text-sm font-medium text-gray-900">Require confirmation</label>
+              <p className="text-xs text-gray-600">Review expenses before they're logged</p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={settings.requireConfirmation}
+                onChange={(e) => handleSettingChange('requireConfirmation', e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[#1E49C9]/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#1E49C9]"></div>
+            </label>
+          </div>
+        </div>
+
+        {/* Notification Settings */}
+        <div className="mt-6 pt-6 border-t border-gray-200">
+          <h4 className="font-semibold text-gray-900 mb-4">Notifications</h4>
+          
           <div className="space-y-4">
-            <h4 className="font-medium text-gray-900">Notifications</h4>
-            
             <div className="flex items-center justify-between">
               <div>
-                <label className="text-sm font-medium text-gray-700">Success notifications</label>
-                <p className="text-xs text-gray-500">Get notified when expenses are successfully logged</p>
+                <label className="text-sm font-medium text-gray-900">Success notifications</label>
+                <p className="text-xs text-gray-600">Get notified when expenses are successfully logged</p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
@@ -250,8 +251,8 @@ const EmailExpenseSettings = () => {
 
             <div className="flex items-center justify-between">
               <div>
-                <label className="text-sm font-medium text-gray-700">Failure notifications</label>
-                <p className="text-xs text-gray-500">Get notified when email parsing fails</p>
+                <label className="text-sm font-medium text-gray-900">Failure notifications</label>
+                <p className="text-xs text-gray-600">Get notified when email parsing fails</p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
@@ -265,54 +266,55 @@ const EmailExpenseSettings = () => {
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Stats */}
-        <div className="bg-gray-50 rounded-lg p-4 mt-6">
-          <h4 className="font-medium text-gray-900 mb-3">Statistics</h4>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-[#1E49C9]">{stats.totalEmailsProcessed}</div>
-              <div className="text-sm text-gray-600">Emails Processed</div>
+      {/* Stats */}
+      <div className="bg-gray-50 rounded-lg p-4">
+        <h4 className="font-semibold text-gray-900 mb-3">Usage Statistics</h4>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-[#1E49C9]">{stats.totalEmailsProcessed}</div>
+            <div className="text-sm text-gray-600">Emails Processed</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-[#1E49C9]">{stats.totalExpensesCreated}</div>
+            <div className="text-sm text-gray-600">Expenses Created</div>
+          </div>
+          <div className="text-center">
+            <div className="text-sm font-bold text-[#1E49C9]">
+              {stats.lastEmailReceived 
+                ? new Date(stats.lastEmailReceived).toLocaleDateString()
+                : 'Never'
+              }
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-[#1E49C9]">{stats.totalExpensesCreated}</div>
-              <div className="text-sm text-gray-600">Expenses Created</div>
-            </div>
-            <div className="text-center">
-              <div className="text-sm text-gray-600">
-                {stats.lastEmailReceived 
-                  ? new Date(stats.lastEmailReceived).toLocaleDateString()
-                  : 'Never'
-                }
-              </div>
-              <div className="text-sm text-gray-600">Last Email</div>
-            </div>
+            <div className="text-sm text-gray-600">Last Email</div>
           </div>
         </div>
+      </div>
 
       {/* Error Display */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center space-x-2">
-            <AlertCircle className="h-5 w-5 text-[#1E49C9]" />
-            <span className="text-red-800">{error}</span>
-          </div>
-        )}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center space-x-2">
+          <AlertCircle className="h-5 w-5 text-red-500" />
+          <span className="text-red-800">{error}</span>
+        </div>
+      )}
 
       {/* Save Button */}
       <div className="flex justify-end">
-          <button
-            onClick={handleSaveSettings}
-            disabled={saving}
-            className="flex items-center space-x-2 px-6 py-2 bg-[#1E49C9] text-white rounded-lg hover:bg-[#1E49C9]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors border border-[rgba(255,255,255,0.2)]"
-          >
-            {saving ? (
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-            ) : (
-              <CheckCircle className="h-4 w-4" />
-            )}
-            <span>{saving ? 'Saving...' : 'Save Settings'}</span>
-          </button>
-        </div>
+        <button
+          onClick={handleSaveSettings}
+          disabled={saving}
+          className="flex items-center space-x-2 px-6 py-2 bg-[#1E49C9] text-white rounded-lg hover:bg-[#1E49C9]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors border border-[rgba(255,255,255,0.2)]"
+        >
+          {saving ? (
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+          ) : (
+            <CheckCircle className="h-4 w-4" />
+          )}
+          <span>{saving ? 'Saving...' : 'Save Settings'}</span>
+        </button>
+      </div>
     </div>
   );
 };
