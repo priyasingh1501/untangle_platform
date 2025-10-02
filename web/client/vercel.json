@@ -8,11 +8,5 @@
     "REACT_APP_API_URL": "https://lyfe-production.up.railway.app",
     "CI": "false",
     "NODE_ENV": "production"
-  },
-  "build": {
-    "env": {
-      "CI": "false",
-      "NODE_ENV": "production"
-    }
   }
 }
