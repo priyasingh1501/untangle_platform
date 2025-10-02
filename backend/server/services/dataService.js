@@ -73,59 +73,63 @@ async function saveFood(phoneNumber, foodData) {
   try {
     const user = await getUserByPhone(phoneNumber);
     
-    // If no specific food items mentioned, create basic FoodTracking entry
-    if (!foodData.foodItems || foodData.foodItems.length === 0) {
+    // Helper to save basic FoodTracking
+    const saveBasicFood = async () => {
       const food = new FoodTracking({
         userId: user._id,
         date: new Date(),
         mealType: foodData.mealType,
         time: foodData.time || new Date().toLocaleTimeString(),
-        energy: 3, // Default value
-        hunger: 3, // Default value
-        plateTemplate: 'balanced', // Default value
-        proteinAnchor: false, // Default value
-        plantColors: 2, // Default value
-        carbQuality: 'whole', // Default value
-        friedOrUPF: false, // Default value
-        addedSugar: false, // Default value
-        mindfulPractice: 'none', // Default value
-        satiety: 3, // Default value
-        postMealCravings: 0, // Default value
+        energy: 3,
+        hunger: 3,
+        plateTemplate: 'balanced',
+        proteinAnchor: false,
+        plantColors: 2,
+        carbQuality: 'whole',
+        friedOrUPF: false,
+        addedSugar: false,
+        mindfulPractice: 'none',
+        satiety: 3,
+        postMealCravings: 0,
         notes: foodData.description,
-        healthGoals: ['steady_energy'] // Default value
+        healthGoals: ['steady_energy']
       });
-      
       const savedFood = await food.save();
       console.log(`🍽️ Saved basic food tracking: ${savedFood._id}`);
       return savedFood;
+    };
+    
+    // If no specific food items mentioned, save basic tracking
+    if (!foodData.foodItems || foodData.foodItems.length === 0) {
+      return await saveBasicFood();
     }
     
-    // Search for food items and create a proper meal
-    const mealItems = await searchAndCreateMealItems(foodData.foodItems);
-    
-    if (mealItems.length === 0) {
-      // Fallback to basic food tracking if no items found
-      return await saveFood(phoneNumber, { ...foodData, foodItems: [] });
-    }
-    
-    // Create meal with found food items
-    const meal = new Meal({
-      userId: user._id,
-      ts: new Date(),
-      items: mealItems,
-      notes: foodData.description,
-      context: {
-        postWorkout: false,
-        plantDiversity: mealItems.length,
-        fermented: false,
-        omega3Tag: false,
-        addedSugar: 0
+    // Try meal flow; on any failure, fallback to basic tracking
+    try {
+      const mealItems = await searchAndCreateMealItems(foodData.foodItems);
+      if (mealItems.length === 0) {
+        return await saveBasicFood();
       }
-    });
-    
-    const savedMeal = await meal.save();
-    console.log(`🍽️ Saved meal with ${mealItems.length} items: ${savedMeal._id}`);
-    return savedMeal;
+      const meal = new Meal({
+        userId: user._id,
+        ts: new Date(),
+        items: mealItems,
+        notes: foodData.description,
+        context: {
+          postWorkout: false,
+          plantDiversity: mealItems.length,
+          fermented: false,
+          omega3Tag: false,
+          addedSugar: 0
+        }
+      });
+      const savedMeal = await meal.save();
+      console.log(`🍽️ Saved meal with ${mealItems.length} items: ${savedMeal._id}`);
+      return savedMeal;
+    } catch (mealError) {
+      console.error('Meal creation failed, falling back to basic tracking:', mealError);
+      return await saveBasicFood();
+    }
   } catch (error) {
     console.error('Error saving food:', error);
     throw error;
