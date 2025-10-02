@@ -76,6 +76,17 @@ export const AuthProvider = ({ children }) => {
       const accessToken = newToken || tokens?.accessToken || tokens?.token;
       const refreshToken = tokens?.refreshToken;
       
+      // Debug logging
+      console.log('🔍 Login response:', response.data);
+      console.log('🔍 Extracted accessToken:', accessToken);
+      console.log('🔍 Extracted refreshToken:', refreshToken);
+      
+      // Ensure we have a valid token
+      if (!accessToken) {
+        console.error('❌ No access token found in response:', response.data);
+        throw new Error('No access token received from server');
+      }
+      
       console.log('🔍 newToken:', newToken);
       console.log('🔍 tokens?.accessToken:', tokens?.accessToken);
       console.log('🔍 tokens?.token:', tokens?.token);
