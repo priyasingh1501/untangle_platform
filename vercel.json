@@ -1,9 +1,21 @@
 {
   "version": 2,
-  "buildCommand": "cd web/client && npm run vercel-build",
-  "outputDirectory": "web/client/build",
-  "installCommand": "cd web/client && npm ci",
-  "framework": "create-react-app",
+  "builds": [
+    {
+      "src": "web/client/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "build",
+        "buildCommand": "npm run vercel-build"
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/web/client/build/$1"
+    }
+  ],
   "env": {
     "REACT_APP_API_URL": "https://lyfe-production.up.railway.app",
     "CI": "false",
