@@ -2,8 +2,8 @@ const { Expense } = require('../models/Finance');
 const { FoodTracking } = require('../models/FoodTracking');
 const { Habit } = require('../models/Habit');
 const { Journal } = require('../models/Journal');
-const { Meal } = require('../models/Meal');
-const { FoodItem } = require('../models/FoodItem');
+const Meal = require('../models/Meal');
+const FoodItem = require('../models/FoodItem');
 const User = require('../models/User');
 const { getAuthenticatedUser, isUserAuthenticated } = require('./whatsappAuthService');
 
