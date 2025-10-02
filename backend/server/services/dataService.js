@@ -239,8 +239,8 @@ async function saveJournal(phoneNumber, journalData) {
       });
     }
     
-    // Add new entry
-    journal.entries.push({
+    // Add new encrypted entry to ensure compatibility with frontend
+    await journal.addEncryptedEntry({
       title: journalData.title,
       content: journalData.content,
       type: journalData.type,
@@ -249,24 +249,10 @@ async function saveJournal(phoneNumber, journalData) {
       isPrivate: true,
       attachments: [],
       location: {},
-      weather: {},
-      alfredAnalysis: {
-        emotion: {
-          primary: journalData.mood,
-          secondary: 'neutral',
-          intensity: 5,
-          confidence: 0.7
-        },
-        topics: [],
-        beliefs: [],
-        summary: journalData.content.substring(0, 100),
-        insights: [],
-        analyzedAt: new Date()
-      }
+      weather: {}
     });
     
-    await journal.save();
-    console.log(`📝 Saved journal entry: ${journal._id}`);
+    console.log(`📝 Saved journal entry (encrypted) for user: ${user._id}`);
     return journal;
   } catch (error) {
     console.error('Error saving journal:', error);
