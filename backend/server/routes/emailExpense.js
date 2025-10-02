@@ -7,6 +7,7 @@ const simpleParser = mailparser.simpleParser;
 const EmailForwarding = require('../models/EmailForwarding');
 const { Expense } = require('../models/Finance');
 const EmailParsingService = require('../services/emailParsingService');
+const EmailService = require('../services/emailService');
 const { auth } = require('../middleware/auth');
 
 // Configure multer for email attachments
@@ -18,6 +19,7 @@ const upload = multer({
 });
 
 const emailParsingService = new EmailParsingService();
+const emailService = new EmailService();
 
 // Webhook endpoint to receive forwarded emails
 router.post('/webhook', async (req, res) => {
@@ -27,54 +29,18 @@ router.post('/webhook', async (req, res) => {
       body: req.body
     });
 
-    // Extract email data from webhook payload
-    const emailData = this.extractEmailDataFromWebhook(req);
-    
-    if (!emailData) {
-      return res.status(400).json({ message: 'Invalid email data' });
+    // Use the email service to process the incoming email
+    const result = await emailService.processIncomingEmail(req.body);
+
+    if (result.success) {
+      res.json({
+        message: 'Email processed successfully',
+        expenseId: result.expenseId,
+        expense: result.expense
+      });
+    } else {
+      res.status(404).json({ message: result.message });
     }
-
-    // Find the user by forwarding email
-    const forwarding = await EmailForwarding.findOne({ 
-      forwardingEmail: emailData.to,
-      isActive: true 
-    });
-
-    if (!forwarding) {
-      console.log('❌ No active forwarding found for email:', emailData.to);
-      return res.status(404).json({ message: 'Forwarding email not found' });
-    }
-
-    // Process the incoming email
-    await forwarding.processIncomingEmail(emailData);
-
-    // Parse email for expense data
-    const expenseData = await emailParsingService.parseEmailForExpense(emailData);
-    
-    if (!expenseData) {
-      console.log('ℹ️ Email does not contain expense information');
-      return res.json({ message: 'Email processed but no expense data found' });
-    }
-
-    // Create expense entry
-    const expense = await createExpenseFromEmailData(expenseData, forwarding.userId, emailData);
-
-    // Update forwarding stats
-    forwarding.totalExpensesCreated += 1;
-    await forwarding.save();
-
-    console.log('✅ Expense created from email:', {
-      expenseId: expense._id,
-      userId: forwarding.userId,
-      amount: expense.amount,
-      vendor: expense.vendor
-    });
-
-    res.json({
-      message: 'Email processed successfully',
-      expenseId: expense._id,
-      expense: expense
-    });
 
   } catch (error) {
     console.error('Error processing email webhook:', error);
@@ -93,6 +59,17 @@ router.get('/forwarding-email', auth, async (req, res) => {
   } catch (error) {
     console.error('Error getting forwarding email:', error);
     res.status(500).json({ message: 'Error getting forwarding email' });
+  }
+});
+
+// Set up email forwarding for user
+router.post('/setup-forwarding', auth, async (req, res) => {
+  try {
+    const result = await emailService.setupEmailForwarding(req.user.userId);
+    res.json(result);
+  } catch (error) {
+    console.error('Error setting up email forwarding:', error);
+    res.status(500).json({ message: 'Error setting up email forwarding' });
   }
 });
 
