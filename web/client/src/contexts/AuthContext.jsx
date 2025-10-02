@@ -68,13 +68,19 @@ export const AuthProvider = ({ children }) => {
       const response = await axios.post(buildApiUrl('/api/auth/login'), { email, password });
       
       console.log('🔍 Login response:', response.data);
+      console.log('🔍 Response data keys:', Object.keys(response.data));
+      console.log('🔍 Tokens object:', response.data.tokens);
+      console.log('🔍 Tokens keys:', response.data.tokens ? Object.keys(response.data.tokens) : 'No tokens object');
       
       const { token: newToken, user: userData, tokens } = response.data;
       const accessToken = newToken || tokens?.accessToken || tokens?.token;
       const refreshToken = tokens?.refreshToken;
       
-      console.log('🔍 Extracted tokens:', { accessToken, refreshToken });
-      console.log('🔍 Token exists:', !!accessToken);
+      console.log('🔍 newToken:', newToken);
+      console.log('🔍 tokens?.accessToken:', tokens?.accessToken);
+      console.log('🔍 tokens?.token:', tokens?.token);
+      console.log('🔍 Final accessToken:', accessToken);
+      console.log('🔍 Final refreshToken:', refreshToken);
       
       setToken(accessToken);
       setUser(userData);
