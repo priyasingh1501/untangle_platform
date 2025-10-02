@@ -392,9 +392,20 @@ router.get('/profile', auth, async (req, res) => {
     
     const user = await User.findById(req.user._id);
     if (!user) {
-      return res.status(404).json({
-        message: 'User not found',
-        code: 'USER_NOT_FOUND'
+      console.log('User not found in database, creating profile from JWT data');
+      // Return profile data from JWT token instead of database
+      return res.json({
+        user: {
+          _id: req.user._id,
+          email: req.user.email,
+          firstName: req.user.firstName || 'User',
+          lastName: req.user.lastName || '',
+          role: req.user.role || 'user'
+        },
+        securityStatus: {
+          twoFactorEnabled: false,
+          emailVerified: false
+        }
       });
     }
 
