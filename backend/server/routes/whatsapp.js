@@ -4,12 +4,11 @@ const router = express.Router();
 const { classifyMessage, parseExpense, parseFood, parseHabit, parseJournal } = require('../services/messageParsingService');
 const { saveExpense, saveFood, saveHabit, saveJournal } = require('../services/dataService');
 const { 
-  initiateAuth, 
-  verifyAuthCode, 
-  verifyEmailAndCompleteAuth, 
-  getAuthStatus, 
+  loginWithCredentials,
   logoutUser,
-  isUserAuthenticated 
+  isUserAuthenticated,
+  getAuthenticatedUser,
+  handleAuthCommands
 } = require('../services/whatsappAuthService');
 
 // Webhook verification endpoint
@@ -175,12 +174,21 @@ async function handleTextMessage(phoneNumber, messageText) {
         response = 'I\'m not sure what you want to log. Try: "₹450 Uber" for expenses, "ate breakfast" for food, "meditation done" for habits, or just write your thoughts for journaling.';
     }
 
-    // Send response
-    await sendMessage(phoneNumber, response);
+    // Send response (don't fail if this doesn't work)
+    try {
+      await sendMessage(phoneNumber, response);
+    } catch (sendError) {
+      console.error('Error sending response message:', sendError.message);
+      // Don't throw - the data was already saved successfully
+    }
 
   } catch (error) {
     console.error('Error handling text message:', error);
-    await sendMessage(phoneNumber, 'Sorry, I encountered an error. Please try again.');
+    try {
+      await sendMessage(phoneNumber, 'Sorry, I encountered an error. Please try again.');
+    } catch (sendError) {
+      console.error('Error sending error message:', sendError.message);
+    }
   }
 }
 
@@ -313,76 +321,6 @@ async function sendMessage(phoneNumber, message) {
   }
 }
 
-// Handle authentication commands
-async function handleAuthCommands(phoneNumber, messageText) {
-  const text = messageText.toLowerCase().trim();
-  
-  // Login command
-  if (text === 'login' || text === 'auth' || text === 'authenticate') {
-    const result = await initiateAuth(phoneNumber);
-    return { handled: true, message: result.message };
-  }
-  
-  // Code verification
-  if (text.startsWith('code ')) {
-    const code = text.replace('code ', '').trim();
-    if (code.length === 6 && /^\d+$/.test(code)) {
-      // Find session token for this phone number
-      // In a real implementation, you'd store session tokens properly
-      const result = await verifyAuthCode(phoneNumber, code);
-      return { handled: true, message: result.message };
-    } else {
-      return { handled: true, message: '❌ Please provide a valid 6-digit code. Format: "code 123456"' };
-    }
-  }
-  
-  // Email verification
-  if (text.startsWith('email ')) {
-    const email = text.replace('email ', '').trim();
-    const result = await verifyEmailAndCompleteAuth(phoneNumber, email);
-    return { handled: true, message: result.message };
-  }
-  
-  // Status check
-  if (text === 'status' || text === 'whoami') {
-    const status = getAuthStatus(phoneNumber);
-    return { handled: true, message: status.message };
-  }
-  
-  // Logout
-  if (text === 'logout' || text === 'signout') {
-    const result = logoutUser(phoneNumber);
-    return { handled: true, message: result.message };
-  }
-  
-  // Help
-  if (text === 'help' || text === 'commands') {
-    const helpMessage = `🤖 WhatsApp Bot Commands:
-
-🔐 Authentication:
-• "login" - Start authentication process
-• "code 123456" - Verify phone with 6-digit code
-• "email your@email.com" - Link to your account
-• "status" - Check authentication status
-• "logout" - Sign out
-
-📊 Data Logging:
-• "₹450 Uber" - Log expense
-• "ate breakfast" - Log food
-• "meditation done" - Log habit
-• "Feeling good today" - Journal entry
-
-🔧 Actions:
-• "undo" - Remove last entry
-• "last expenses" - Show recent expenses
-• "weekly summary" - Show weekly summary
-
-💡 Tip: Authenticate first to link WhatsApp to your dashboard account!`;
-    return { handled: true, message: helpMessage };
-  }
-  
-  return { handled: false };
-}
 
 module.exports = router;
 

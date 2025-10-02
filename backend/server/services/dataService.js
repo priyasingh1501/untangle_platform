@@ -53,7 +53,7 @@ async function saveExpense(phoneNumber, expenseData) {
       date: expenseData.date,
       category: expenseData.category,
       description: expenseData.description,
-      source: 'whatsapp',
+      source: 'other', // WhatsApp is not in the enum, using 'other'
       paymentMethod: 'digital-wallet'
     });
     

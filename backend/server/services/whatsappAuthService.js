@@ -1,281 +1,243 @@
 const User = require('../models/User');
+const WhatsAppSession = require('../models/WhatsAppSession');
+const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 
-// Store temporary auth codes (in production, use Redis)
-const authCodes = new Map();
-const phoneToEmailMap = new Map();
-const phoneToSessionMap = new Map(); // Map phone numbers to session tokens
+// In-memory cache for quick lookups (backed by database)
+const phoneToEmailMap = new Map(); // Map phone numbers to authenticated user sessions
 
-// Generate 6-digit auth code
-function generateAuthCode() {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-}
-
-// Generate secure session token
+// Generate a simple session token (in production, use JWT or similar)
 function generateSessionToken() {
   return crypto.randomBytes(32).toString('hex');
 }
 
-// Send auth code via WhatsApp (placeholder - you'll implement actual sending)
-async function sendAuthCode(phoneNumber, code) {
-  // This would integrate with your WhatsApp sending service
-  console.log(`📱 Auth code for ${phoneNumber}: ${code}`);
-  // In real implementation, send via WhatsApp API
-  return true;
-}
-
-// Send email verification (placeholder)
-async function sendEmailVerification(email, code) {
-  console.log(`📧 Email verification for ${email}: ${code}`);
-  // In real implementation, send via email service
-  return true;
-}
-
-// Step 1: User requests authentication
-async function initiateAuth(phoneNumber) {
+// Load active sessions from database on startup
+async function loadActiveSessions() {
   try {
-    // Check if phone number is already linked
-    const existingMapping = phoneToEmailMap.get(phoneNumber);
-    if (existingMapping) {
+    console.log('🔄 Loading active WhatsApp sessions from database...');
+    const sessions = await WhatsAppSession.find({ isActive: true, expiresAt: { $gt: new Date() } });
+    
+    phoneToEmailMap.clear(); // Clear existing cache
+    
+    sessions.forEach(session => {
+      phoneToEmailMap.set(session.phoneNumber, {
+        email: session.email,
+        userId: session.userId,
+        name: session.name,
+        linkedAt: session.linkedAt,
+        sessionToken: session.sessionToken
+      });
+    });
+    
+    console.log(`✅ Loaded ${sessions.length} active WhatsApp sessions`);
+  } catch (error) {
+    console.error('❌ Error loading WhatsApp sessions:', error);
+  }
+}
+
+// Send message (placeholder for actual WhatsApp API call)
+async function sendMessage(phoneNumber, message) {
+  // This is a placeholder. The actual sendMessage function is in whatsappService.js
+  // For testing auth flow, we'll just log it.
+  console.log(`📤 Sending message to ${phoneNumber}: ${message}`);
+}
+
+// Direct email/password login for WhatsApp
+async function loginWithCredentials(phoneNumber, email, password) {
+  try {
+    console.log(`🔐 Attempting login for ${email} from phone ${phoneNumber}`);
+
+    // Find user by email
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) {
       return {
-        success: true,
-        message: `✅ You're already logged in as ${existingMapping.email}. All your messages will be saved to your account.`,
-        status: 'already_authenticated'
+        success: false,
+        message: '❌ No account found with this email. Please register on the web platform first.'
       };
     }
 
-    // Generate auth code
-    const authCode = generateAuthCode();
+    // Verify password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return {
+        success: false,
+        message: '❌ Invalid password. Please check your credentials.'
+      };
+    }
+
+    // Check if user is active
+    if (!user.isActive) {
+      return {
+        success: false,
+        message: '❌ Account is inactive. Please contact support.'
+      };
+    }
+
+    // Link phone number to user account
+    user.phoneNumber = phoneNumber;
+    user.isTemporary = false; // Mark as non-temporary
+    user.source = 'whatsapp_auth';
+    await user.save();
+
+    // Remove any temporary user that might have existed for this phone number
+    await User.deleteOne({ phoneNumber, isTemporary: true, _id: { $ne: user._id } });
+
+    // Create session token
     const sessionToken = generateSessionToken();
     
-    // Store auth session
-    authCodes.set(sessionToken, {
+    // Store authenticated session in database
+    const sessionData = {
       phoneNumber,
-      authCode,
-      timestamp: Date.now(),
-      step: 'awaiting_code'
-    });
-    
-    // Map phone number to session token
-    phoneToSessionMap.set(phoneNumber, sessionToken);
-
-    // Send auth code via WhatsApp
-    await sendAuthCode(phoneNumber, authCode);
-
-    return {
-      success: true,
-      message: `🔐 Authentication initiated! I've sent a 6-digit code to your WhatsApp. Please reply with: "code <6-digit-code>" to verify your phone number.`,
+      userId: user._id,
+      email: user.email,
+      name: user.name || `${user.firstName} ${user.lastName}`.trim(),
       sessionToken,
-      status: 'awaiting_code'
+      linkedAt: new Date(),
+      lastActivity: new Date(),
+      isActive: true
     };
-  } catch (error) {
-    console.error('Error initiating auth:', error);
-    return {
-      success: false,
-      message: '❌ Failed to initiate authentication. Please try again.'
-    };
-  }
-}
 
-// Step 2: Verify auth code
-async function verifyAuthCode(phoneNumber, code) {
-  try {
-    // Get session token for phone number
-    const sessionToken = phoneToSessionMap.get(phoneNumber);
-    if (!sessionToken) {
-      return {
-        success: false,
-        message: '❌ No active authentication session. Please start authentication again with "login".'
-      };
-    }
-    
-    const authSession = authCodes.get(sessionToken);
-    
-    if (!authSession) {
-      return {
-        success: false,
-        message: '❌ Invalid or expired session. Please start authentication again with "login".'
-      };
-    }
+    // Save or update session in database
+    await WhatsAppSession.findOneAndUpdate(
+      { phoneNumber },
+      sessionData,
+      { upsert: true, new: true }
+    );
 
-    // Check if code is correct
-    if (authSession.authCode !== code) {
-      return {
-        success: false,
-        message: '❌ Invalid code. Please try again with "code <6-digit-code>".'
-      };
-    }
-
-    // Check if session is not too old (10 minutes)
-    if (Date.now() - authSession.timestamp > 10 * 60 * 1000) {
-      authCodes.delete(sessionToken);
-      return {
-        success: false,
-        message: '❌ Session expired. Please start authentication again with "login".'
-      };
-    }
-
-    // Update session
-    authSession.step = 'phone_verified';
-    authSession.timestamp = Date.now();
-
-    return {
-      success: true,
-      message: `✅ Phone number verified! Now please provide your email address. Reply with: "email your-email@example.com"`,
-      status: 'awaiting_email'
-    };
-  } catch (error) {
-    console.error('Error verifying auth code:', error);
-    return {
-      success: false,
-      message: '❌ Failed to verify code. Please try again.'
-    };
-  }
-}
-
-// Step 3: Verify email and complete authentication
-async function verifyEmailAndCompleteAuth(phoneNumber, email) {
-  try {
-    // Get session token for phone number
-    const sessionToken = phoneToSessionMap.get(phoneNumber);
-    if (!sessionToken) {
-      return {
-        success: false,
-        message: '❌ No active authentication session. Please start authentication again with "login".'
-      };
-    }
-    
-    const authSession = authCodes.get(sessionToken);
-    
-    if (!authSession || authSession.step !== 'phone_verified') {
-      return {
-        success: false,
-        message: '❌ Invalid session. Please start authentication again with "login".'
-      };
-    }
-
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return {
-        success: false,
-        message: '❌ Invalid email format. Please provide a valid email address.'
-      };
-    }
-
-    // Check if user exists with this email
-    let user = await User.findOne({ email });
-    
-    if (!user) {
-      // Create new user
-      user = new User({
-        email,
-        name: `WhatsApp User ${authSession.phoneNumber}`,
-        phoneNumber: authSession.phoneNumber,
-        isActive: true,
-        source: 'whatsapp_auth'
-      });
-      await user.save();
-      console.log(`👤 Created new user via WhatsApp auth: ${email}`);
-    } else {
-      // Link phone number to existing user
-      user.phoneNumber = authSession.phoneNumber;
-      await user.save();
-      console.log(`🔗 Linked phone ${authSession.phoneNumber} to existing user: ${email}`);
-    }
-
-    // Create permanent mapping
-    phoneToEmailMap.set(authSession.phoneNumber, {
+    // Also store in memory cache for quick access
+    phoneToEmailMap.set(phoneNumber, {
       email: user.email,
       userId: user._id,
-      name: user.name,
-      linkedAt: new Date()
+      name: user.name || `${user.firstName} ${user.lastName}`.trim(),
+      linkedAt: new Date(),
+      sessionToken
     });
 
-    // Clean up auth session
-    authCodes.delete(sessionToken);
-    phoneToSessionMap.delete(phoneNumber);
+    console.log(`✅ User ${user.email} successfully authenticated via WhatsApp`);
 
     return {
       success: true,
-      message: `🎉 Authentication complete! You're now logged in as ${user.name} (${user.email}). All your WhatsApp messages will be saved to your account and appear in your dashboard.`,
+      message: `🎉 Welcome back, ${user.name || user.firstName}! You're now logged in via WhatsApp. All your messages will be saved to your account and appear in your dashboard.`,
       user: {
         id: user._id,
         email: user.email,
-        name: user.name
-      },
-      status: 'authenticated'
+        name: user.name || `${user.firstName} ${user.lastName}`.trim()
+      }
     };
   } catch (error) {
-    console.error('Error completing auth:', error);
+    console.error('Error during WhatsApp login:', error);
     return {
       success: false,
-      message: '❌ Failed to complete authentication. Please try again.'
+      message: '❌ Login failed. Please try again or contact support.'
     };
   }
 }
 
-// Get user by phone number (for authenticated users)
+// Check if a user is authenticated
+function isUserAuthenticated(phoneNumber) {
+  const session = phoneToEmailMap.get(phoneNumber);
+  return !!session;
+}
+
+// Get the authenticated user object
 async function getAuthenticatedUser(phoneNumber) {
+  const session = phoneToEmailMap.get(phoneNumber);
+  if (session && session.userId) {
+    return await User.findById(session.userId);
+  }
+  return null;
+}
+
+// Logout a user
+async function logoutUser(phoneNumber) {
   try {
-    const mapping = phoneToEmailMap.get(phoneNumber);
-    
-    if (!mapping) {
-      return null; // User not authenticated
+    // Remove from database
+    const result = await WhatsAppSession.findOneAndUpdate(
+      { phoneNumber, isActive: true },
+      { isActive: false, lastActivity: new Date() }
+    );
+
+    // Remove from memory cache
+    if (phoneToEmailMap.has(phoneNumber)) {
+      phoneToEmailMap.delete(phoneNumber);
     }
 
-    const user = await User.findById(mapping.userId);
-    return user;
+    if (result) {
+      console.log(`🚪 User ${phoneNumber} logged out from WhatsApp.`);
+      return {
+        success: true,
+        message: '👋 You have been logged out. Use "login email@example.com password" to authenticate again.'
+      };
+    } else {
+      return {
+        success: false,
+        message: '❌ No active WhatsApp session found.'
+      };
+    }
   } catch (error) {
-    console.error('Error getting authenticated user:', error);
-    return null;
-  }
-}
-
-// Check if user is authenticated
-function isUserAuthenticated(phoneNumber) {
-  return phoneToEmailMap.has(phoneNumber);
-}
-
-// Logout user
-function logoutUser(phoneNumber) {
-  phoneToEmailMap.delete(phoneNumber);
-  return {
-    success: true,
-    message: '👋 You have been logged out. Use "login" to authenticate again.'
-  };
-}
-
-// Get authentication status
-function getAuthStatus(phoneNumber) {
-  const mapping = phoneToEmailMap.get(phoneNumber);
-  
-  if (!mapping) {
+    console.error('Error during logout:', error);
     return {
-      authenticated: false,
-      message: 'You are not logged in. Use "login" to authenticate.'
+      success: false,
+      message: '❌ Error during logout. Please try again.'
     };
   }
+}
+
+// Handle authentication commands in the main message flow
+async function handleAuthCommands(phoneNumber, messageText) {
+  const text = messageText.toLowerCase().trim();
+  let responseMessage = '';
+  let handled = false;
+
+  // Check if already authenticated
+  if (isUserAuthenticated(phoneNumber)) {
+    const user = await getAuthenticatedUser(phoneNumber);
+    if (text === 'logout') {
+      const result = await logoutUser(phoneNumber);
+      responseMessage = result.message;
+      handled = true;
+    } else if (text === 'status' || text === 'auth status') {
+      responseMessage = `✅ You are logged in as ${user.email}. All your messages are being saved to your account.`;
+      handled = true;
+    }
+  } else {
+    // Not authenticated - handle login commands
+    if (text.startsWith('login ')) {
+      const loginParts = text.substring(6).trim().split(' ');
+      if (loginParts.length >= 2) {
+        const email = loginParts[0];
+        const password = loginParts.slice(1).join(' '); // Join remaining parts as password (in case password has spaces)
+        
+        if (email && password) {
+          const result = await loginWithCredentials(phoneNumber, email, password);
+          responseMessage = result.message;
+          handled = true;
+        } else {
+          responseMessage = '❌ Please provide both email and password. Format: "login email@example.com password"';
+          handled = true;
+        }
+      } else {
+        responseMessage = '❌ Please provide both email and password. Format: "login email@example.com password"';
+        handled = true;
+      }
+    } else if (text === 'status' || text === 'auth status') {
+      responseMessage = '❌ You are not logged in. Use "login email@example.com password" to authenticate.';
+      handled = true;
+    }
+  }
 
   return {
-    authenticated: true,
-    user: {
-      email: mapping.email,
-      name: mapping.name,
-      linkedAt: mapping.linkedAt
-    },
-    message: `You are logged in as ${mapping.name} (${mapping.email})`
+    handled,
+    message: responseMessage
   };
 }
 
 module.exports = {
-  initiateAuth,
-  verifyAuthCode,
-  verifyEmailAndCompleteAuth,
-  getAuthenticatedUser,
+  loginWithCredentials,
   isUserAuthenticated,
+  getAuthenticatedUser,
   logoutUser,
-  getAuthStatus,
-  generateAuthCode,
-  generateSessionToken
+  handleAuthCommands,
+  loadActiveSessions,
+  phoneToEmailMap // Export for testing
 };

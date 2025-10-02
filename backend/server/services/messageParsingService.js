@@ -52,8 +52,9 @@ function classifyMessageFallback(messageText) {
   
   // Check for expense indicators
   if (text.match(/[₹$€£¥]|\d+\s*(rupees?|dollars?|euros?|pounds?)/) || 
-      text.match(/\d+\s+(uber|ola|swiggy|zomato|amazon|flipkart)/)) {
-    return { type: 'expense', confidence: 0.8, reasoning: 'Contains currency or merchant keywords' };
+      text.match(/\d+\s+(uber|ola|swiggy|zomato|amazon|flipkart)/) ||
+      text.match(/^(expense|spent|paid|bought|purchased)/)) {
+    return { type: 'expense', confidence: 0.8, reasoning: 'Contains currency, merchant keywords, or expense verbs' };
   }
   
   // Check for food indicators

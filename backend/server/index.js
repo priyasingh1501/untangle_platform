@@ -50,6 +50,7 @@ const billingRoutes = require('./routes/billing');
 const tasksRoutes = require('./routes/tasks');
 const emailExpenseRoutes = require('./routes/emailExpense');
 const whatsappRoutes = require('./routes/whatsapp');
+const { loadActiveSessions } = require('./services/whatsappAuthService');
 
 // Validate security configuration
 validateSecurityConfig();
@@ -235,9 +236,16 @@ app.get('/api/mongodb-status', (req, res) => {
   });
 });
 
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '0.0.0.0', async () => {
   console.log(`🚀 Full server running on port ${PORT}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔗 Health check available at: http://0.0.0.0:${PORT}/api/health`);
   console.log(`🔗 Server test available at: http://0.0.0.0:${PORT}/api/server-test`);
+  
+  // Load active WhatsApp sessions after server starts
+  if (mongoose.connection.readyState === 1) {
+    await loadActiveSessions();
+  } else {
+    console.log('⚠️ MongoDB not connected, skipping WhatsApp session loading');
+  }
 });
