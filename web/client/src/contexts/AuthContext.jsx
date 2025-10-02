@@ -67,9 +67,14 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await axios.post(buildApiUrl('/api/auth/login'), { email, password });
       
+      console.log('🔍 Login response:', response.data);
+      
       const { token: newToken, user: userData, tokens } = response.data;
       const accessToken = newToken || tokens?.accessToken || tokens?.token;
       const refreshToken = tokens?.refreshToken;
+      
+      console.log('🔍 Extracted tokens:', { accessToken, refreshToken });
+      console.log('🔍 Token exists:', !!accessToken);
       
       setToken(accessToken);
       setUser(userData);
@@ -78,6 +83,8 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem('refreshToken', refreshToken);
       }
       axios.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+      
+      console.log('🔍 Token stored in localStorage:', localStorage.getItem('token'));
       
       toast.success('Login successful!');
       return { success: true };
