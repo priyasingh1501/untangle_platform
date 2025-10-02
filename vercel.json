@@ -1,5 +1,14 @@
 {
   "version": 2,
+  "buildCommand": "cd web/client && npm ci && npm run build",
+  "outputDirectory": "web/client/build",
+  "installCommand": "cd web/client && npm ci",
+  "framework": "create-react-app",
+  "env": {
+    "REACT_APP_API_URL": "https://lyfe-production.up.railway.app",
+    "CI": "false",
+    "NODE_ENV": "production"
+  },
   "builds": [
     {
       "src": "web/client/package.json",
@@ -8,15 +17,5 @@
         "distDir": "build"
       }
     }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/web/client/$1"
-    }
-  ],
-  "env": {
-    "REACT_APP_API_URL": "https://untangle-production.up.railway.app",
-    "CI": "false"
-  }
+  ]
 }
