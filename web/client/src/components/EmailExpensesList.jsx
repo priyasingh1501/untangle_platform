@@ -20,11 +20,18 @@ const EmailExpensesList = () => {
   const fetchEmailExpenses = async () => {
     try {
       setLoading(true);
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setError('Please log in to view email expenses');
+        setLoading(false);
+        return;
+      }
+
       const response = await fetch(
         buildApiUrl(`/api/email-expense/email-expenses?page=${pagination.page}&limit=${pagination.limit}`),
         {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
+            'Authorization': `Bearer ${token}`
           }
         }
       );
@@ -37,6 +44,7 @@ const EmailExpensesList = () => {
         setError('Failed to load email expenses');
       }
     } catch (err) {
+      console.error('Error fetching email expenses:', err);
       setError('Error loading email expenses');
     } finally {
       setLoading(false);

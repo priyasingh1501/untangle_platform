@@ -28,9 +28,16 @@ const EmailExpenseSettings = () => {
 
   const fetchSettings = async () => {
     try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setError('Please log in to access email expense settings');
+        setLoading(false);
+        return;
+      }
+
       const response = await fetch(buildApiUrl('/api/email-expense/settings'), {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${token}`
         }
       });
 
@@ -39,10 +46,15 @@ const EmailExpenseSettings = () => {
         setForwardingEmail(data.forwardingEmail);
         setSettings(data.settings);
         setStats(data.stats);
+      } else if (response.status === 404) {
+        // Email forwarding not set up yet, create default settings
+        setForwardingEmail('user@expenses.untangle.app');
+        setError('');
       } else {
         setError('Failed to load email settings');
       }
     } catch (err) {
+      console.error('Error fetching email settings:', err);
       setError('Error loading email settings');
     } finally {
       setLoading(false);
@@ -102,20 +114,16 @@ const EmailExpenseSettings = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6">
-      <div className="bg-white rounded-lg shadow-sm border p-6">
-        <div className="flex items-center space-x-3 mb-6">
-          <Mail className="h-6 w-6 text-[#1E49C9]" />
-          <h2 className="text-2xl font-bold text-gray-900">Email Expense Forwarding</h2>
-        </div>
+    <div className="space-y-6">
+      <div className="space-y-6">
 
         {/* Forwarding Email Display */}
-        <div className="mb-8">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+          <label className="block text-sm font-medium text-gray-900 mb-3">
             Your Unique Forwarding Email
           </label>
-          <div className="flex items-center space-x-3">
-            <div className="flex-1 bg-gray-50 border border-gray-300 rounded-lg px-4 py-3 font-mono text-sm">
+          <div className="flex items-center space-x-3 mb-3">
+            <div className="flex-1 bg-white border border-gray-300 rounded-lg px-4 py-3 font-mono text-sm">
               {forwardingEmail}
             </div>
             <button
@@ -126,15 +134,15 @@ const EmailExpenseSettings = () => {
               <span>{copied ? 'Copied!' : 'Copy'}</span>
             </button>
           </div>
-          <p className="text-sm text-gray-600 mt-2">
+          <p className="text-sm text-gray-600">
             Forward your receipts and invoices to this email address to automatically log expenses.
           </p>
         </div>
 
         {/* Instructions */}
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
-          <h3 className="font-semibold text-gray-900 mb-2">How to Use:</h3>
-          <ol className="list-decimal list-inside space-y-1 text-sm text-gray-700">
+          <h3 className="font-semibold text-gray-900 mb-3">How to Use:</h3>
+          <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700">
             <li>Copy your unique forwarding email above</li>
             <li>Forward receipts, invoices, or expense emails to this address</li>
             <li>Our AI will automatically extract expense details</li>
@@ -143,8 +151,8 @@ const EmailExpenseSettings = () => {
         </div>
 
         {/* Settings */}
-        <div className="space-y-6">
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+          <h3 className="text-lg font-semibold text-gray-900 flex items-center space-x-2 mb-4">
             <Settings className="h-5 w-5 text-[#1E49C9]" />
             <span>Settings</span>
           </h3>

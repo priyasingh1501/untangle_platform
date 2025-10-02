@@ -1,15 +1,14 @@
 #!/usr/bin/env node
 
-// Test WhatsApp message processing
+// Simple webhook test with detailed logging
 const fetch = require('node-fetch');
 
-async function testWhatsAppMessage() {
-  console.log('🧪 Testing WhatsApp Message Processing');
+async function testWebhookWithLogging() {
+  console.log('🔍 Testing Webhook with Detailed Logging');
   console.log('=====================================\n');
 
   const webhookUrl = 'http://localhost:5002/api/whatsapp/webhook';
   
-  // Simulate a WhatsApp message payload
   const testMessage = {
     object: 'whatsapp_business_account',
     entry: [{
@@ -22,7 +21,7 @@ async function testWhatsAppMessage() {
             phone_number_id: '796369900227467'
           },
           messages: [{
-            from: '919019384482',
+            from: '15551234567',
             id: 'test_message_id',
             timestamp: Math.floor(Date.now() / 1000).toString(),
             text: {
@@ -37,8 +36,8 @@ async function testWhatsAppMessage() {
   };
 
   try {
-    console.log('📱 Sending test message: "help"');
-    console.log('📞 From phone: +15551234567');
+    console.log('📤 Sending webhook request...');
+    console.log('📱 Payload:', JSON.stringify(testMessage, null, 2));
     console.log('');
 
     const response = await fetch(webhookUrl, {
@@ -49,21 +48,19 @@ async function testWhatsAppMessage() {
       body: JSON.stringify(testMessage)
     });
 
+    console.log('📥 Response Status:', response.status);
+    const responseBody = await response.text();
+    console.log('📥 Response Body:', responseBody);
+    
     if (response.ok) {
-      const result = await response.json();
-      console.log('✅ Webhook response:', result);
-      console.log('');
-      console.log('💡 Check server logs for message processing details');
+      console.log('✅ Webhook processed successfully');
     } else {
-      console.log('❌ Webhook failed:', response.status, response.statusText);
-      const error = await response.text();
-      console.log('Error details:', error);
+      console.log('❌ Webhook failed');
     }
 
   } catch (error) {
-    console.error('❌ Test failed:', error.message);
+    console.error('❌ Error:', error.message);
   }
 }
 
-// Run test
-testWhatsAppMessage();
+testWebhookWithLogging();

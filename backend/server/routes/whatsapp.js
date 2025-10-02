@@ -35,20 +35,37 @@ router.get('/webhook', (req, res) => {
 router.post('/webhook', async (req, res) => {
   try {
     const body = req.body;
+    console.log('🔔 Webhook received:', JSON.stringify(body, null, 2));
 
     if (body.object === 'whatsapp_business_account') {
       if (body.entry && body.entry[0].changes && body.entry[0].changes[0].value) {
         const value = body.entry[0].changes[0].value;
+        console.log('📨 Processing webhook value:', JSON.stringify(value, null, 2));
         
-        if (value.messages && Array.isArray(value.messages)) {
-          for (const message of value.messages) {
+        if (value.messages) {
+          // Handle both array and object formats
+          let messages = [];
+          if (Array.isArray(value.messages)) {
+            messages = value.messages;
+          } else if (typeof value.messages === 'object') {
+            // Convert object to array
+            messages = Object.values(value.messages);
+          }
+          
+          console.log(`📱 Found ${messages.length} messages to process`);
+          for (const message of messages) {
             await processIncomingMessage(message, value.metadata);
           }
+        } else {
+          console.log('❌ No messages found in webhook');
         }
+      } else {
+        console.log('❌ Invalid webhook structure');
       }
       
       res.status(200).json({ status: 'success' });
     } else {
+      console.log('❌ Not a WhatsApp business account webhook');
       res.status(404).json({ error: 'Not Found' });
     }
   } catch (error) {
@@ -65,14 +82,20 @@ async function processIncomingMessage(message, metadata) {
     const messageType = message.type;
     
     console.log(`📱 Received ${messageType} message from ${phoneNumber}: ${messageText}`);
+    console.log(`📱 Full message object:`, JSON.stringify(message, null, 2));
 
     // Handle different message types
     if (messageType === 'text') {
+      console.log(`📝 Processing text message: ${messageText}`);
       await handleTextMessage(phoneNumber, messageText);
     } else if (messageType === 'image' || messageType === 'document') {
+      console.log(`📷 Processing media message`);
       await handleMediaMessage(phoneNumber, message, metadata);
     } else if (messageType === 'audio') {
+      console.log(`🎤 Processing voice message`);
       await handleVoiceMessage(phoneNumber, message, metadata);
+    } else {
+      console.log(`❓ Unknown message type: ${messageType}`);
     }
   } catch (error) {
     console.error('Error processing incoming message:', error);
@@ -279,7 +302,9 @@ async function sendMessage(phoneNumber, message) {
     });
 
     if (!response.ok) {
-      throw new Error(`WhatsApp API error: ${response.status}`);
+      const errorBody = await response.text();
+      console.error('WhatsApp API Error Details:', errorBody);
+      throw new Error(`WhatsApp API error: ${response.status} - ${errorBody}`);
     }
 
     console.log(`📤 Sent message to ${phoneNumber}`);

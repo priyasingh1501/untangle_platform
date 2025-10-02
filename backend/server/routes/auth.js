@@ -35,7 +35,7 @@ router.post('/register',
           req.ip
         );
         return res.status(409).json({ 
-          message: 'User already exists with this email',
+          message: 'An account with this email already exists. Please try logging in instead.',
           code: 'USER_EXISTS'
         });
       }
@@ -94,7 +94,7 @@ router.post('/register',
       );
 
       res.status(500).json({ 
-        message: 'Registration failed',
+        message: 'Registration failed. Please try again or contact support if the problem persists.',
         code: 'REGISTRATION_FAILED'
       });
     }

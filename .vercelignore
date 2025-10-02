@@ -1,12 +1,46 @@
+# Backend files (deployed separately to Railway)
 backend/
+backend/**
+
+# Mobile files (deployed separately to Expo)
 mobile/
-docs/
+mobile/**
+
+# Development files
 node_modules/
-.git/
-.DS_Store
 *.log
-.env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Build artifacts
+build/
+dist/
+
+# Test files
+**/*.test.js
+**/*.test.jsx
+**/*.spec.js
+**/*.spec.jsx
+__tests__/
+coverage/
+
+# Documentation
+README.md
+docs/
+*.md
+
+# Git files
+.git/
+.gitignore
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db

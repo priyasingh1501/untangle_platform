@@ -14,7 +14,8 @@ import {
   TrendingDown,
   CreditCard,
   Target,
-  Mail
+  Mail,
+  CheckCircle
 } from 'lucide-react';
 import axios from 'axios';
 import Card from '../components/ui/Card';
@@ -1320,6 +1321,37 @@ const Finance = () => {
       {activeTab === 'email-expenses' && (
         <div className="md:col-span-2 lg:col-span-3 xl:col-span-4">
           <div className="space-y-6">
+            {/* Info Section */}
+            <Card 
+              variant="base"
+              className="h-full"
+              title="EMAIL EXPENSE FUNCTIONALITY"
+              subtitle="Automatically log expenses by forwarding receipts to a unique email address"
+              icon={<Mail className="h-5 w-5 text-[#1E49C9]" />}
+            >
+              <div className="space-y-6">
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                  <h3 className="font-semibold text-gray-900 mb-3">How It Works:</h3>
+                  <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700">
+                    <li>Get your unique forwarding email address</li>
+                    <li>Forward receipts, invoices, or expense emails to this address</li>
+                    <li>Our AI automatically extracts expense details</li>
+                    <li>Review and confirm the parsed information</li>
+                  </ol>
+                </div>
+                
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-center space-x-2 mb-3">
+                    <CheckCircle className="h-5 w-5 text-[#1E49C9]" />
+                    <h3 className="font-semibold text-gray-900">Supported Formats</h3>
+                  </div>
+                  <p className="text-sm text-gray-700">
+                    PDF receipts, image attachments, and text-based invoices are all supported.
+                  </p>
+                </div>
+              </div>
+            </Card>
+
             {/* Email Settings */}
             <Card 
               variant="base"

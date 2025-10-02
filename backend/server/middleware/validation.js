@@ -25,7 +25,7 @@ const validate = (validations) => {
       );
 
       return res.status(400).json({
-        message: 'Validation failed',
+        message: 'Please check your information and try again',
         errors: errorMessages
       });
     }
@@ -68,8 +68,8 @@ const schemas = {
   // User registration
   userRegistration: Joi.object({
     email: Joi.string().email().required().messages({
-      'string.email': 'Please provide a valid email address',
-      'any.required': 'Email is required'
+      'string.email': 'Please enter a valid email address (e.g., john@example.com)',
+      'any.required': 'Email address is required'
     }),
     password: Joi.string()
       .min(8)
@@ -79,16 +79,16 @@ const schemas = {
       .messages({
         'string.min': 'Password must be at least 8 characters long',
         'string.max': 'Password must not exceed 128 characters',
-        'string.pattern.base': 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character',
+        'string.pattern.base': 'Password must include: uppercase letter, lowercase letter, number, and special character (@$!%*?&)',
         'any.required': 'Password is required'
       }),
     firstName: Joi.string().min(1).max(50).required().messages({
-      'string.min': 'First name is required',
+      'string.min': 'First name is required and cannot be empty',
       'string.max': 'First name must not exceed 50 characters',
       'any.required': 'First name is required'
     }),
     lastName: Joi.string().min(1).max(50).required().messages({
-      'string.min': 'Last name is required',
+      'string.min': 'Last name is required and cannot be empty',
       'string.max': 'Last name must not exceed 50 characters',
       'any.required': 'Last name is required'
     })
@@ -261,14 +261,23 @@ const schemas = {
 const validationRules = {
   // User registration
   userRegistration: [
-    body('email').isEmail().normalizeEmail().withMessage('Please provide a valid email address'),
+    body('email')
+      .isEmail()
+      .normalizeEmail()
+      .withMessage('Please enter a valid email address (e.g., john@example.com)'),
     body('password')
       .isLength({ min: 8, max: 128 })
-      .withMessage('Password must be between 8 and 128 characters')
+      .withMessage('Password must be between 8 and 128 characters long')
       .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
-      .withMessage('Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character'),
-    body('firstName').trim().isLength({ min: 1, max: 50 }).withMessage('First name must be between 1 and 50 characters'),
-    body('lastName').trim().isLength({ min: 1, max: 50 }).withMessage('Last name must be between 1 and 50 characters')
+      .withMessage('Password must include: uppercase letter, lowercase letter, number, and special character (@$!%*?&)'),
+    body('firstName')
+      .trim()
+      .isLength({ min: 1, max: 50 })
+      .withMessage('First name is required and must be between 1 and 50 characters'),
+    body('lastName')
+      .trim()
+      .isLength({ min: 1, max: 50 })
+      .withMessage('Last name is required and must be between 1 and 50 characters')
   ],
 
   // User login

@@ -238,7 +238,7 @@ const authRateLimit = (req, res, next) => {
 
   const now = Date.now();
   const windowMs = 15 * 60 * 1000; // 15 minutes
-  const maxAttempts = 5;
+  const maxAttempts = process.env.NODE_ENV === 'development' ? 50 : 5; // More permissive in development
 
   if (!global.authAttempts.has(key)) {
     global.authAttempts.set(key, { count: 1, firstAttempt: now });
@@ -256,7 +256,7 @@ const authRateLimit = (req, res, next) => {
   if (attempts.count >= maxAttempts) {
     securityLogger.logAccountLockout('unknown', ip, 'rate_limit_exceeded');
     return res.status(429).json({ 
-      message: 'Too many authentication attempts, please try again later',
+      message: 'Too many attempts. Please wait a few minutes before trying again.',
       code: 'RATE_LIMIT_EXCEEDED',
       retryAfter: Math.ceil((attempts.firstAttempt + windowMs - now) / 1000)
     });

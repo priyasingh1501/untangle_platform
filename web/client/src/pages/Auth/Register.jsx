@@ -40,17 +40,17 @@ const Register = () => {
     const newErrors = {};
 
     if (!formData.firstName.trim()) {
-      newErrors.firstName = 'First name is required';
+      newErrors.firstName = 'First name is required and cannot be empty';
     }
 
     if (!formData.lastName.trim()) {
-      newErrors.lastName = 'Last name is required';
+      newErrors.lastName = 'Last name is required and cannot be empty';
     }
 
     if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
+      newErrors.email = 'Email address is required';
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Email is invalid';
+      newErrors.email = 'Please enter a valid email address (e.g., john@example.com)';
     }
 
     if (!formData.password) {
@@ -58,7 +58,7 @@ const Register = () => {
     } else if (formData.password.length < 8) {
       newErrors.password = 'Password must be at least 8 characters long';
     } else if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/.test(formData.password)) {
-      newErrors.password = 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character';
+      newErrors.password = 'Password must include: uppercase letter, lowercase letter, number, and special character (@$!%*?&)';
     }
 
     if (formData.password !== formData.confirmPassword) {

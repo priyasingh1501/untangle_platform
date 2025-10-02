@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 
-// Test WhatsApp message processing
+// Test if bot is trying to send responses
 const fetch = require('node-fetch');
 
-async function testWhatsAppMessage() {
-  console.log('🧪 Testing WhatsApp Message Processing');
-  console.log('=====================================\n');
+async function testBotResponse() {
+  console.log('🤖 Testing Bot Response');
+  console.log('======================\n');
 
   const webhookUrl = 'http://localhost:5002/api/whatsapp/webhook';
   
-  // Simulate a WhatsApp message payload
+  // Simulate a real WhatsApp message
   const testMessage = {
     object: 'whatsapp_business_account',
     entry: [{
@@ -22,7 +22,7 @@ async function testWhatsAppMessage() {
             phone_number_id: '796369900227467'
           },
           messages: [{
-            from: '919019384482',
+            from: '15551234567',
             id: 'test_message_id',
             timestamp: Math.floor(Date.now() / 1000).toString(),
             text: {
@@ -37,10 +37,8 @@ async function testWhatsAppMessage() {
   };
 
   try {
-    console.log('📱 Sending test message: "help"');
-    console.log('📞 From phone: +15551234567');
-    console.log('');
-
+    console.log('📱 Sending "help" message...');
+    
     const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: {
@@ -50,20 +48,16 @@ async function testWhatsAppMessage() {
     });
 
     if (response.ok) {
-      const result = await response.json();
-      console.log('✅ Webhook response:', result);
-      console.log('');
-      console.log('💡 Check server logs for message processing details');
+      console.log('✅ Message received by webhook');
+      console.log('💡 The bot should now try to send a response');
+      console.log('💡 If you see "Recipient phone number not in allowed list" errors, that means the bot is working but can\'t send to test numbers');
     } else {
-      console.log('❌ Webhook failed:', response.status, response.statusText);
-      const error = await response.text();
-      console.log('Error details:', error);
+      console.log('❌ Webhook failed:', response.status);
     }
 
   } catch (error) {
-    console.error('❌ Test failed:', error.message);
+    console.error('❌ Error:', error.message);
   }
 }
 
-// Run test
-testWhatsAppMessage();
+testBotResponse();

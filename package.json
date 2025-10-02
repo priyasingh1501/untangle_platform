@@ -13,6 +13,7 @@
     "install:all": "npm install && cd backend && npm install && cd ../web/client && npm install && cd ../../mobile/mobile && npm install",
     "build": "npm run build:web && npm run build:mobile",
     "build:web": "cd web/client && npm run build",
+    "build:web:vercel": "cd web/client && npm run vercel-build",
     "build:mobile": "cd mobile && npm run build",
     "typecheck": "npm run typecheck:web && npm run typecheck:mobile",
     "typecheck:web": "cd web/client && npm run typecheck",
@@ -20,7 +21,8 @@
     "clean": "rm -rf node_modules backend/node_modules web/node_modules mobile/node_modules",
     "setup": "npm run install:all",
     "start": "cd backend && npm start",
-    "build:prod": "cd backend && npm run build:prod"
+    "build:prod": "cd backend && npm run build:prod",
+    "vercel-build": "npm run build:web:vercel"
   },
   "dependencies": {
     "@playwright/test": "^1.55.0",
