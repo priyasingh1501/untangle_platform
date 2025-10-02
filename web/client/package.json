@@ -24,7 +24,7 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "build:vercel": "CI=false react-scripts build",
-    "vercel-build": "CI=false react-scripts build",
+    "vercel-build": "CI=false npm run build",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",

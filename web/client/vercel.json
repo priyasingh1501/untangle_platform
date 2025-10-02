@@ -2,8 +2,17 @@
   "version": 2,
   "buildCommand": "npm run vercel-build",
   "outputDirectory": "build",
+  "installCommand": "npm ci",
+  "framework": "create-react-app",
   "env": {
     "REACT_APP_API_URL": "https://lyfe-production.up.railway.app",
-    "CI": "false"
+    "CI": "false",
+    "NODE_ENV": "production"
+  },
+  "build": {
+    "env": {
+      "CI": "false",
+      "NODE_ENV": "production"
+    }
   }
 }
