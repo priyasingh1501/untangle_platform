@@ -20,24 +20,42 @@ export const AuthProvider = ({ children }) => {
 
   const fetchUserProfile = useCallback(async () => {
     try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.log('🔍 No token found, skipping profile fetch');
+        setLoading(false);
+        return;
+      }
+      
+      console.log('🔍 Fetching profile with token:', token.substring(0, 20) + '...');
       const response = await axios.get(buildApiUrl('/api/auth/profile'));
       setUser(response.data.user);
     } catch (error) {
       console.error('Error fetching user profile:', error);
+      console.error('Error status:', error?.response?.status);
+      console.error('Error data:', error?.response?.data);
+      
       // If unauthorized, try to refresh token once before logging out
       if (error?.response?.status === 401) {
+        console.log('🔍 401 error, attempting token refresh...');
         try {
           const refreshResult = await refreshToken();
           if (refreshResult.success) {
+            console.log('🔍 Token refresh successful, retrying profile fetch');
             const retryResponse = await axios.get(buildApiUrl('/api/auth/profile'));
             setUser(retryResponse.data.user);
           } else {
+            console.log('🔍 Token refresh failed, logging out');
             logout();
           }
         } catch (refreshError) {
           console.error('Profile fetch: token refresh failed:', refreshError);
           logout();
         }
+      } else {
+        // For non-401 errors, just log out
+        console.log('🔍 Non-401 error, logging out');
+        logout();
       }
     } finally {
       setLoading(false);
@@ -68,45 +86,66 @@ export const AuthProvider = ({ children }) => {
       const response = await axios.post(buildApiUrl('/api/auth/login'), { email, password });
       
       console.log('🔍 Login response:', response.data);
-      console.log('🔍 Response data keys:', Object.keys(response.data));
-      console.log('🔍 Tokens object:', response.data.tokens);
-      console.log('🔍 Tokens keys:', response.data.tokens ? Object.keys(response.data.tokens) : 'No tokens object');
       
-      const { token: newToken, user: userData, tokens } = response.data;
-      const accessToken = newToken || tokens?.accessToken || tokens?.token;
-      const refreshToken = tokens?.refreshToken;
+      // Extract tokens with multiple fallback strategies
+      const responseData = response.data;
+      let accessToken = null;
+      let refreshToken = null;
       
-      // Debug logging
-      console.log('🔍 Login response:', response.data);
-      console.log('🔍 Extracted accessToken:', accessToken);
-      console.log('🔍 Extracted refreshToken:', refreshToken);
-      
-      // Ensure we have a valid token
-      if (!accessToken) {
-        console.error('❌ No access token found in response:', response.data);
-        throw new Error('No access token received from server');
+      // Strategy 1: Direct token field
+      if (responseData.token) {
+        accessToken = responseData.token;
+        console.log('🔍 Found token in responseData.token');
       }
       
-      console.log('🔍 newToken:', newToken);
-      console.log('🔍 tokens?.accessToken:', tokens?.accessToken);
-      console.log('🔍 tokens?.token:', tokens?.token);
+      // Strategy 2: tokens.accessToken
+      if (!accessToken && responseData.tokens?.accessToken) {
+        accessToken = responseData.tokens.accessToken;
+        console.log('🔍 Found token in responseData.tokens.accessToken');
+      }
+      
+      // Strategy 3: tokens.token
+      if (!accessToken && responseData.tokens?.token) {
+        accessToken = responseData.tokens.token;
+        console.log('🔍 Found token in responseData.tokens.token');
+      }
+      
+      // Get refresh token
+      if (responseData.tokens?.refreshToken) {
+        refreshToken = responseData.tokens.refreshToken;
+        console.log('🔍 Found refresh token');
+      }
+      
       console.log('🔍 Final accessToken:', accessToken);
       console.log('🔍 Final refreshToken:', refreshToken);
       
-      setToken(accessToken);
-      setUser(userData);
+      // Validate we have a token
+      if (!accessToken) {
+        console.error('❌ No access token found in response:', responseData);
+        throw new Error('No access token received from server');
+      }
+      
+      // Store tokens immediately
       localStorage.setItem('token', accessToken);
       if (refreshToken) {
         localStorage.setItem('refreshToken', refreshToken);
       }
+      
+      // Set axios default header
       axios.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
       
+      // Update state
+      setToken(accessToken);
+      setUser(responseData.user);
+      
       console.log('🔍 Token stored in localStorage:', localStorage.getItem('token'));
+      console.log('🔍 Refresh token stored:', localStorage.getItem('refreshToken'));
       
       toast.success('Login successful!');
       return { success: true };
     } catch (error) {
-      const message = error.response?.data?.message || 'Login failed';
+      console.error('❌ Login error:', error);
+      const message = error.response?.data?.message || error.message || 'Login failed';
       toast.error(message);
       return { success: false, message };
     }
