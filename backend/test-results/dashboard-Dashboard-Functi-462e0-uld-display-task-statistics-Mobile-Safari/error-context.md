@@ -1,0 +1,46 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - button [ref=e4] [cursor=pointer]:
+    - img [ref=e5] [cursor=pointer]
+  - button "Install App" [ref=e6] [cursor=pointer]:
+    - img [ref=e7] [cursor=pointer]
+  - generic [ref=e12]:
+    - generic [ref=e13]:
+      - generic:
+        - generic: U
+      - heading "Welcome to Untangle" [level=2] [ref=e14]
+      - paragraph [ref=e15]: Sign in to manage your lifestyle
+    - generic [ref=e16]:
+      - generic [ref=e17]:
+        - generic [ref=e18]:
+          - generic [ref=e19]: Email address
+          - generic [ref=e20]:
+            - generic:
+              - img
+            - textbox "Enter your email" [ref=e21]
+        - generic [ref=e22]:
+          - generic [ref=e23]: Password
+          - generic [ref=e24]:
+            - generic:
+              - img
+            - textbox "Enter your password" [ref=e25]
+            - button "Show password" [ref=e26] [cursor=pointer]:
+              - img [ref=e27] [cursor=pointer]
+      - generic [ref=e30]:
+        - generic [ref=e31]:
+          - checkbox "Remember me" [ref=e32]
+          - generic [ref=e33]: Remember me
+        - button "Forgot your password?" [ref=e35] [cursor=pointer]
+      - button "Sign in" [ref=e36] [cursor=pointer]
+      - paragraph [ref=e38]:
+        - text: Don't have an account?
+        - link "Sign up here" [ref=e39]:
+          - /url: /register
+    - paragraph [ref=e41]:
+      - text: By signing in, you agree to our
+      - button "Terms of Service" [ref=e42] [cursor=pointer]
+      - text: and
+      - button "Privacy Policy" [ref=e43] [cursor=pointer]
+```

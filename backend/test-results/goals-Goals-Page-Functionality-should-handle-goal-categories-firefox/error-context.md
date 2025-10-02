@@ -1,0 +1,64 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e4]:
+  - generic [ref=e6]:
+    - generic [ref=e7]:
+      - generic [ref=e9]: U
+      - heading "Welcome to Untangle" [level=2] [ref=e10]
+      - paragraph [ref=e11]: Sign in to manage your lifestyle
+    - generic [ref=e12]:
+      - generic [ref=e13]:
+        - generic [ref=e14]:
+          - generic [ref=e15]: Email address
+          - generic [ref=e16]:
+            - generic:
+              - img
+            - textbox "Enter your email" [ref=e17]
+        - generic [ref=e18]:
+          - generic [ref=e19]: Password
+          - generic [ref=e20]:
+            - generic:
+              - img
+            - textbox "Enter your password" [ref=e21]
+            - button "Show password" [ref=e22] [cursor=pointer]:
+              - img [ref=e23] [cursor=pointer]
+      - generic [ref=e26]:
+        - generic [ref=e27]:
+          - checkbox "Remember me" [ref=e28]
+          - generic [ref=e29]: Remember me
+        - button "Forgot your password?" [ref=e31] [cursor=pointer]
+      - button "Sign in" [ref=e32] [cursor=pointer]
+      - paragraph [ref=e34]:
+        - text: Don't have an account?
+        - link "Sign up here" [ref=e35] [cursor=pointer]:
+          - /url: /register
+    - paragraph [ref=e37]:
+      - text: By signing in, you agree to our
+      - button "Terms of Service" [ref=e38] [cursor=pointer]
+      - text: and
+      - button "Privacy Policy" [ref=e39] [cursor=pointer]
+  - generic [ref=e42]:
+    - generic [ref=e47]:
+      - heading "Welcome to Untangle" [level=3] [ref=e48]
+      - paragraph [ref=e49]: Your lifestyle journey starts here
+    - generic [ref=e54]:
+      - heading "Join Us" [level=3] [ref=e55]
+      - paragraph [ref=e56]: Connect
+    - generic [ref=e61]:
+      - heading "Start Today" [level=3] [ref=e62]
+      - paragraph [ref=e63]: Take action
+    - generic [ref=e68]:
+      - heading "Transform Life" [level=3] [ref=e69]
+      - paragraph [ref=e70]: Positive changes
+    - heading "Grow" [level=3] [ref=e76]
+    - generic [ref=e81]:
+      - heading "Achieve Goals" [level=3] [ref=e82]
+      - paragraph [ref=e83]: Success awaits
+    - generic [ref=e88]:
+      - heading "Learn More" [level=3] [ref=e89]
+      - paragraph [ref=e90]: Grow
+    - generic [ref=e95]:
+      - heading "Succeed Together" [level=3] [ref=e96]
+      - paragraph [ref=e97]: Achieve greatness
+```

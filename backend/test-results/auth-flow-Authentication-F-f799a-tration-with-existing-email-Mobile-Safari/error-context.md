@@ -1,0 +1,75 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - button [ref=e4] [cursor=pointer]:
+    - img [ref=e5] [cursor=pointer]
+  - button "Install App" [ref=e6] [cursor=pointer]:
+    - img [ref=e7] [cursor=pointer]
+  - generic [ref=e12]:
+    - generic [ref=e13]:
+      - generic [ref=e15]: U
+      - heading "Create your account" [level=2] [ref=e16]
+      - paragraph [ref=e17]: Start managing your lifestyle with Untangle
+    - link "Back to login" [ref=e19]:
+      - /url: /login
+      - img [ref=e20]
+      - text: Back to login
+    - generic [ref=e22]:
+      - generic [ref=e23]:
+        - generic [ref=e24]:
+          - generic [ref=e25]: First Name
+          - generic [ref=e26]:
+            - generic:
+              - img
+            - textbox "Enter your first name" [ref=e27]: Jane
+        - generic [ref=e28]:
+          - generic [ref=e29]: Last Name
+          - generic [ref=e30]:
+            - generic:
+              - img
+            - textbox "Enter your last name" [ref=e31]: Smith
+        - generic [ref=e32]:
+          - generic [ref=e33]: Email Address
+          - generic [ref=e34]:
+            - generic:
+              - img
+            - textbox "Enter your email" [ref=e35]: john.doe@example.com
+        - generic [ref=e36]:
+          - generic [ref=e37]: Password
+          - generic [ref=e38]:
+            - generic:
+              - img
+            - textbox "Create a password" [ref=e39]: password123
+            - button "Show password" [ref=e40] [cursor=pointer]:
+              - img [ref=e41] [cursor=pointer]
+        - generic [ref=e44]:
+          - generic [ref=e45]: Confirm Password
+          - generic [ref=e46]:
+            - generic:
+              - img
+            - textbox "Confirm your password" [ref=e47]: password123
+            - button "Show password" [ref=e48] [cursor=pointer]:
+              - img [ref=e49] [cursor=pointer]
+      - generic [ref=e52]:
+        - checkbox "I agree to the Terms of Service and Privacy Policy" [active] [ref=e53]
+        - generic [ref=e54]:
+          - text: I agree to the
+          - link "Terms of Service" [ref=e55]:
+            - /url: "#"
+          - text: and
+          - link "Privacy Policy" [ref=e56]:
+            - /url: "#"
+      - button "Create Account" [ref=e58] [cursor=pointer]
+      - paragraph [ref=e60]:
+        - text: Already have an account?
+        - link "Sign in here" [ref=e61]:
+          - /url: /login
+    - paragraph [ref=e63]:
+      - text: By creating an account, you agree to our
+      - link "Terms of Service" [ref=e64]:
+        - /url: "#"
+      - text: and
+      - link "Privacy Policy" [ref=e65]:
+        - /url: "#"
+```

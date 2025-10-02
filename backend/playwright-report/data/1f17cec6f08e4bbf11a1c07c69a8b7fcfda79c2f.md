@@ -1,0 +1,94 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e4]:
+  - generic [ref=e6]:
+    - generic [ref=e7]:
+      - generic [ref=e9]: U
+      - heading "Create your account" [level=2] [ref=e10]
+      - paragraph [ref=e11]: Start managing your lifestyle with Untangle
+    - link "Back to login" [ref=e13] [cursor=pointer]:
+      - /url: /login
+      - img [ref=e14] [cursor=pointer]
+      - text: Back to login
+    - generic [ref=e17]:
+      - generic [ref=e18]:
+        - generic [ref=e19]:
+          - generic [ref=e20]: First Name
+          - generic [ref=e21]:
+            - generic:
+              - img
+            - textbox "Enter your first name" [ref=e22]: Jane
+        - generic [ref=e23]:
+          - generic [ref=e24]: Last Name
+          - generic [ref=e25]:
+            - generic:
+              - img
+            - textbox "Enter your last name" [ref=e26]: Smith
+        - generic [ref=e27]:
+          - generic [ref=e28]: Email Address
+          - generic [ref=e29]:
+            - generic:
+              - img
+            - textbox "Enter your email" [ref=e30]: john.doe@example.com
+        - generic [ref=e31]:
+          - generic [ref=e32]: Password
+          - generic [ref=e33]:
+            - generic:
+              - img
+            - textbox "Create a password" [ref=e34]: password123
+            - button "Show password" [ref=e35] [cursor=pointer]:
+              - img [ref=e36] [cursor=pointer]
+        - generic [ref=e39]:
+          - generic [ref=e40]: Confirm Password
+          - generic [ref=e41]:
+            - generic:
+              - img
+            - textbox "Confirm your password" [ref=e42]: password123
+            - button "Show password" [ref=e43] [cursor=pointer]:
+              - img [ref=e44] [cursor=pointer]
+      - generic [ref=e47]:
+        - checkbox "I agree to the Terms of Service and Privacy Policy" [active] [ref=e48]
+        - generic [ref=e49]:
+          - text: I agree to the
+          - link "Terms of Service" [ref=e50] [cursor=pointer]:
+            - /url: "#"
+          - text: and
+          - link "Privacy Policy" [ref=e51] [cursor=pointer]:
+            - /url: "#"
+      - button "Create Account" [ref=e53] [cursor=pointer]
+      - paragraph [ref=e55]:
+        - text: Already have an account?
+        - link "Sign in here" [ref=e56] [cursor=pointer]:
+          - /url: /login
+    - paragraph [ref=e58]:
+      - text: By creating an account, you agree to our
+      - link "Terms of Service" [ref=e59] [cursor=pointer]:
+        - /url: "#"
+      - text: and
+      - link "Privacy Policy" [ref=e60] [cursor=pointer]:
+        - /url: "#"
+  - generic [ref=e63]:
+    - heading "Join" [level=3] [ref=e69]
+    - generic [ref=e74]:
+      - heading "Create Account" [level=3] [ref=e75]
+      - paragraph [ref=e76]: Get started today
+    - generic [ref=e81]:
+      - heading "Connect & Share" [level=3] [ref=e82]
+      - paragraph [ref=e83]: Build connections
+    - generic [ref=e88]:
+      - heading "Discover" [level=3] [ref=e89]
+      - paragraph [ref=e90]: Explore
+    - generic [ref=e95]:
+      - heading "Learn & Grow" [level=3] [ref=e96]
+      - paragraph [ref=e97]: Continuous learning
+    - generic [ref=e102]:
+      - heading "Succeed Together" [level=3] [ref=e103]
+      - paragraph [ref=e104]: Achieve goals
+    - generic [ref=e109]:
+      - heading "Grow" [level=3] [ref=e110]
+      - paragraph [ref=e111]: Improve
+    - generic [ref=e116]:
+      - heading "Achieve Dreams" [level=3] [ref=e117]
+      - paragraph [ref=e118]: Make it happen
+```
