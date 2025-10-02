@@ -3,22 +3,34 @@ const { FoodTracking } = require('../models/FoodTracking');
 const { Habit } = require('../models/Habit');
 const { Journal } = require('../models/Journal');
 const User = require('../models/User');
+const { getAuthenticatedUser, isUserAuthenticated } = require('./whatsappAuthService');
 
-// Get or create user by phone number
+// Get user by phone number (authenticated or create temporary)
 async function getUserByPhone(phoneNumber) {
   try {
+    // First check if user is authenticated
+    if (isUserAuthenticated(phoneNumber)) {
+      const user = await getAuthenticatedUser(phoneNumber);
+      if (user) {
+        console.log(`👤 Using authenticated user: ${user.email}`);
+        return user;
+      }
+    }
+
+    // If not authenticated, create temporary user
     let user = await User.findOne({ phoneNumber });
     
     if (!user) {
-      // Create new user with phone number
+      // Create temporary user with phone number
       user = new User({
         phoneNumber,
         email: `${phoneNumber}@whatsapp.untangle.com`,
         name: `WhatsApp User ${phoneNumber}`,
-        isActive: true
+        isActive: true,
+        isTemporary: true // Mark as temporary
       });
       await user.save();
-      console.log(`👤 Created new user for phone: ${phoneNumber}`);
+      console.log(`👤 Created temporary user for phone: ${phoneNumber}`);
     }
     
     return user;

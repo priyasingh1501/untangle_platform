@@ -9,22 +9,39 @@ const userSchema = new mongoose.Schema({
     lowercase: true,
     trim: true
   },
+  phoneNumber: {
+    type: String,
+    unique: true,
+    sparse: true, // Allows multiple null values
+    trim: true
+  },
   password: {
     type: String,
-    required: true,
+    required: function() {
+      return !this.isTemporary; // Password not required for temporary users
+    },
     minlength: 8
   },
   firstName: {
     type: String,
-    required: true,
+    required: function() {
+      return !this.isTemporary; // First name not required for temporary users
+    },
     trim: true,
     maxlength: 50
   },
   lastName: {
     type: String,
-    required: true,
+    required: function() {
+      return !this.isTemporary; // Last name not required for temporary users
+    },
     trim: true,
     maxlength: 50
+  },
+  name: {
+    type: String,
+    trim: true,
+    maxlength: 100
   },
   profilePicture: {
     type: String,
@@ -72,6 +89,15 @@ const userSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
+  },
+  isTemporary: {
+    type: Boolean,
+    default: false
+  },
+  source: {
+    type: String,
+    enum: ['web', 'whatsapp', 'whatsapp_auth'],
+    default: 'web'
   },
   lastLogin: {
     type: Date,
