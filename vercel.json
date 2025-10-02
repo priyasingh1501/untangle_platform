@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "buildCommand": "cd web/client && CI=false npm run build",
+  "buildCommand": "cd web/client && npm ci && CI=false npm run build",
   "outputDirectory": "web/client/build",
-  "installCommand": "cd web/client && npm ci",
+  "installCommand": "npm ci",
   "framework": "create-react-app",
   "env": {
     "REACT_APP_API_URL": "https://lyfe-production.up.railway.app",
