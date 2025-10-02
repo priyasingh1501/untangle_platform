@@ -1,6 +1,6 @@
 const express = require('express');
+const fetch = require('node-fetch');
 const router = express.Router();
-const { verifyWebhook, processMessage } = require('../services/whatsappService');
 const { classifyMessage, parseExpense, parseFood, parseHabit, parseJournal } = require('../services/messageParsingService');
 const { saveExpense, saveFood, saveHabit, saveJournal } = require('../services/dataService');
 const { 
@@ -40,7 +40,7 @@ router.post('/webhook', async (req, res) => {
       if (body.entry && body.entry[0].changes && body.entry[0].changes[0].value) {
         const value = body.entry[0].changes[0].value;
         
-        if (value.messages) {
+        if (value.messages && Array.isArray(value.messages)) {
           for (const message of value.messages) {
             await processIncomingMessage(message, value.metadata);
           }
