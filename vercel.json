@@ -1,7 +1,7 @@
 {
   "version": 2,
-  "buildCommand": "cd web/client && npm ci && CI=false npm run build",
-  "outputDirectory": "web/client/build",
+  "buildCommand": "CI=false npm run build",
+  "outputDirectory": "build",
   "installCommand": "npm ci",
   "framework": "create-react-app",
   "env": {
