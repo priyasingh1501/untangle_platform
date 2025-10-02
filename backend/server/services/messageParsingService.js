@@ -62,7 +62,7 @@ function classifyMessageFallback(messageText) {
   // Check for food indicators (more specific)
   if ((text.match(/(ate|eating|breakfast|lunch|dinner|snack|food|meal)/) ||
       text.match(/(swiggy|zomato|foodpanda|ubereats)/)) &&
-      !text.match(/(grateful|thankful|feeling|thinking|family|work|life)/)) {
+      !text.match(/(grateful|thankful|feeling|thinking|work|life)/)) {
     return { type: 'food', confidence: 0.8, reasoning: 'Contains food-related keywords' };
   }
   
@@ -180,12 +180,14 @@ async function parseFood(messageText) {
     Return JSON with:
     - mealType: one of: breakfast, lunch, snack, dinner
     - description: string describing what was eaten
+    - foodItems: array of specific food items mentioned (e.g., ["toast", "eggs", "coffee"])
     - calories: number (optional, estimate if not provided)
     - time: string (optional)
     
     Examples:
-    "ate breakfast - toast and eggs" → {"mealType": "breakfast", "description": "toast and eggs", "calories": 300}
-    "lunch at office canteen" → {"mealType": "lunch", "description": "office canteen", "calories": 500}
+    "ate breakfast - toast and eggs" → {"mealType": "breakfast", "description": "toast and eggs", "foodItems": ["toast", "eggs"], "calories": 300}
+    "lunch at office canteen" → {"mealType": "lunch", "description": "office canteen", "foodItems": [], "calories": 500}
+    "had rice, dal, and vegetables" → {"mealType": "lunch", "description": "rice, dal, and vegetables", "foodItems": ["rice", "dal", "vegetables"], "calories": 400}
     `;
 
     const response = await openai.chat.completions.create({
@@ -200,6 +202,7 @@ async function parseFood(messageText) {
       return {
         mealType: result.mealType,
         description: result.description,
+        foodItems: result.foodItems || [],
         calories: result.calories || null,
         time: result.time || null,
         source: 'whatsapp'
@@ -225,9 +228,20 @@ function parseFoodFallback(messageText) {
   // Extract description (everything after "ate" or meal type)
   const description = text.replace(/(ate|breakfast|lunch|dinner|snack)\s*-?\s*/, '').trim() || 'food';
   
+  // Try to extract food items from description
+  const foodItems = [];
+  const commonFoods = ['rice', 'dal', 'bread', 'toast', 'eggs', 'coffee', 'tea', 'milk', 'vegetables', 'chicken', 'fish', 'paneer', 'curry', 'soup', 'salad', 'fruit', 'apple', 'banana', 'orange'];
+  
+  commonFoods.forEach(food => {
+    if (description.toLowerCase().includes(food)) {
+      foodItems.push(food);
+    }
+  });
+  
   return {
     mealType,
     description,
+    foodItems,
     calories: null,
     time: null,
     source: 'whatsapp'

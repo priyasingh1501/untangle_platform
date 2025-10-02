@@ -2,6 +2,8 @@ const { Expense } = require('../models/Finance');
 const { FoodTracking } = require('../models/FoodTracking');
 const { Habit } = require('../models/Habit');
 const { Journal } = require('../models/Journal');
+const { Meal } = require('../models/Meal');
+const { FoodItem } = require('../models/FoodItem');
 const User = require('../models/User');
 const { getAuthenticatedUser, isUserAuthenticated } = require('./whatsappAuthService');
 
@@ -66,38 +68,101 @@ async function saveExpense(phoneNumber, expenseData) {
   }
 }
 
-// Save food data
+// Save food data with meal creation
 async function saveFood(phoneNumber, foodData) {
   try {
     const user = await getUserByPhone(phoneNumber);
     
-    const food = new FoodTracking({
+    // If no specific food items mentioned, create basic FoodTracking entry
+    if (!foodData.foodItems || foodData.foodItems.length === 0) {
+      const food = new FoodTracking({
+        userId: user._id,
+        date: new Date(),
+        mealType: foodData.mealType,
+        time: foodData.time || new Date().toLocaleTimeString(),
+        energy: 3, // Default value
+        hunger: 3, // Default value
+        plateTemplate: 'balanced', // Default value
+        proteinAnchor: false, // Default value
+        plantColors: 2, // Default value
+        carbQuality: 'whole', // Default value
+        friedOrUPF: false, // Default value
+        addedSugar: false, // Default value
+        mindfulPractice: 'none', // Default value
+        satiety: 3, // Default value
+        postMealCravings: 0, // Default value
+        notes: foodData.description,
+        healthGoals: ['steady_energy'] // Default value
+      });
+      
+      const savedFood = await food.save();
+      console.log(`🍽️ Saved basic food tracking: ${savedFood._id}`);
+      return savedFood;
+    }
+    
+    // Search for food items and create a proper meal
+    const mealItems = await searchAndCreateMealItems(foodData.foodItems);
+    
+    if (mealItems.length === 0) {
+      // Fallback to basic food tracking if no items found
+      return await saveFood(phoneNumber, { ...foodData, foodItems: [] });
+    }
+    
+    // Create meal with found food items
+    const meal = new Meal({
       userId: user._id,
-      date: new Date(),
-      mealType: foodData.mealType,
-      time: foodData.time || new Date().toLocaleTimeString(),
-      energy: 3, // Default value
-      hunger: 3, // Default value
-      plateTemplate: 'balanced', // Default value
-      proteinAnchor: false, // Default value
-      plantColors: 2, // Default value
-      carbQuality: 'whole', // Default value
-      friedOrUPF: false, // Default value
-      addedSugar: false, // Default value
-      mindfulPractice: 'none', // Default value
-      satiety: 3, // Default value
-      postMealCravings: 0, // Default value
+      ts: new Date(),
+      items: mealItems,
       notes: foodData.description,
-      healthGoals: ['steady_energy'] // Default value
+      context: {
+        postWorkout: false,
+        plantDiversity: mealItems.length,
+        fermented: false,
+        omega3Tag: false,
+        addedSugar: 0
+      }
     });
     
-    const savedFood = await food.save();
-    console.log(`🍽️ Saved food: ${savedFood._id}`);
-    return savedFood;
+    const savedMeal = await meal.save();
+    console.log(`🍽️ Saved meal with ${mealItems.length} items: ${savedMeal._id}`);
+    return savedMeal;
   } catch (error) {
     console.error('Error saving food:', error);
     throw error;
   }
+}
+
+// Search for food items and create meal items
+async function searchAndCreateMealItems(foodItems) {
+  const mealItems = [];
+  
+  for (const foodName of foodItems) {
+    try {
+      // Search for the food item in the database
+      const foodItem = await FoodItem.findOne({
+        nameFold: { $regex: foodName.toLowerCase(), $options: 'i' }
+      }).limit(1);
+      
+      if (foodItem) {
+        // Estimate portion size (default 100g for most items)
+        const defaultGrams = foodItem.portionGramsDefault || 100;
+        
+        mealItems.push({
+          foodId: foodItem._id,
+          customName: foodItem.name,
+          grams: defaultGrams
+        });
+        
+        console.log(`✅ Found food item: ${foodItem.name} (${defaultGrams}g)`);
+      } else {
+        console.log(`❌ Food item not found: ${foodName}`);
+      }
+    } catch (error) {
+      console.error(`Error searching for food item ${foodName}:`, error);
+    }
+  }
+  
+  return mealItems;
 }
 
 // Save habit data

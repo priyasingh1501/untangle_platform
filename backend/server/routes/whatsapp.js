@@ -144,7 +144,14 @@ async function handleTextMessage(phoneNumber, messageText) {
         const foodData = await parseFood(messageText);
         if (foodData) {
           const savedFood = await saveFood(phoneNumber, foodData);
-          response = `🍽️ Logged food: ${foodData.mealType} - ${foodData.description}. Edit? [Edit] [OK]`;
+          
+          // Check if it's a meal with food items or basic food tracking
+          if (savedFood.items && savedFood.items.length > 0) {
+            const itemNames = savedFood.items.map(item => item.customName).join(', ');
+            response = `🍽️ Logged meal: ${foodData.mealType} with ${savedFood.items.length} items (${itemNames}). Nutritional data calculated!`;
+          } else {
+            response = `🍽️ Logged food: ${foodData.mealType} - ${foodData.description}. Basic tracking saved.`;
+          }
         } else {
           response = 'I couldn\'t parse that food entry. Please try again with format: "ate breakfast - toast and eggs"';
         }
@@ -154,7 +161,9 @@ async function handleTextMessage(phoneNumber, messageText) {
         const habitData = await parseHabit(messageText);
         if (habitData) {
           const savedHabit = await saveHabit(phoneNumber, habitData);
-          response = `✅ Nice — ${habitData.habit} marked ${habitData.status} for ${new Date().toLocaleDateString()}. Streak: ${habitData.streak} days.`;
+          // Calculate current streak
+          const streak = calculateStreak(savedHabit.checkins);
+          response = `✅ Nice — ${habitData.habit} marked ${habitData.status} for ${new Date().toLocaleDateString()}. Streak: ${streak} days.`;
         } else {
           response = 'I couldn\'t parse that habit. Please try again with format: "meditation done"';
         }
@@ -321,6 +330,47 @@ async function sendMessage(phoneNumber, message) {
   }
 }
 
+
+// Calculate streak from check-ins
+function calculateStreak(checkins) {
+  if (!checkins || checkins.length === 0) return 0;
+  
+  // Sort checkins by date (most recent first)
+  const sortedCheckins = checkins.sort((a, b) => new Date(b.date) - new Date(a.date));
+  
+  let streak = 0;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  // Check if today is completed
+  const todayCheckin = sortedCheckins.find(c => {
+    const cDate = new Date(c.date);
+    cDate.setHours(0, 0, 0, 0);
+    return cDate.getTime() === today.getTime();
+  });
+  
+  if (todayCheckin && todayCheckin.completed) {
+    streak = 1;
+    
+    // Count consecutive completed days
+    for (let i = 1; i < sortedCheckins.length; i++) {
+      const checkinDate = new Date(sortedCheckins[i].date);
+      checkinDate.setHours(0, 0, 0, 0);
+      
+      const expectedDate = new Date(today);
+      expectedDate.setDate(expectedDate.getDate() - i);
+      expectedDate.setHours(0, 0, 0, 0);
+      
+      if (checkinDate.getTime() === expectedDate.getTime() && sortedCheckins[i].completed) {
+        streak++;
+      } else {
+        break;
+      }
+    }
+  }
+  
+  return streak;
+}
 
 module.exports = router;
 
