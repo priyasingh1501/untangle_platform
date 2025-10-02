@@ -50,22 +50,30 @@ async function classifyMessage(messageText) {
 function classifyMessageFallback(messageText) {
   const text = messageText.toLowerCase();
   
-  // Check for expense indicators
+  // Check for expense indicators (more comprehensive)
   if (text.match(/[₹$€£¥]|\d+\s*(rupees?|dollars?|euros?|pounds?)/) || 
       text.match(/\d+\s+(uber|ola|swiggy|zomato|amazon|flipkart)/) ||
-      text.match(/^(expense|spent|paid|bought|purchased)/)) {
+      text.match(/^(expense|spent|paid|bought|purchased)/) ||
+      text.match(/(uber|ola|swiggy|zomato|amazon|flipkart).*\d+/) ||
+      text.match(/\d+.*(uber|ola|swiggy|zomato|amazon|flipkart)/)) {
     return { type: 'expense', confidence: 0.8, reasoning: 'Contains currency, merchant keywords, or expense verbs' };
   }
   
-  // Check for food indicators
-  if (text.match(/(ate|eating|breakfast|lunch|dinner|snack|food|meal)/) ||
-      text.match(/(swiggy|zomato|foodpanda|ubereats)/)) {
+  // Check for food indicators (more specific)
+  if ((text.match(/(ate|eating|breakfast|lunch|dinner|snack|food|meal)/) ||
+      text.match(/(swiggy|zomato|foodpanda|ubereats)/)) &&
+      !text.match(/(grateful|thankful|feeling|thinking|family|work|life)/)) {
     return { type: 'food', confidence: 0.8, reasoning: 'Contains food-related keywords' };
   }
   
   // Check for habit indicators
   if (text.match(/(did|done|completed|skipped|streak|habit|exercise|meditation|workout)/)) {
     return { type: 'habit', confidence: 0.7, reasoning: 'Contains habit-related keywords' };
+  }
+  
+  // Check for journal indicators (personal thoughts/feelings)
+  if (text.match(/(feeling|thinking|grateful|thankful|happy|sad|frustrated|excited|worried|anxious|calm|peaceful|life|family|work|day|today|yesterday)/)) {
+    return { type: 'journal', confidence: 0.7, reasoning: 'Contains personal thoughts or feelings' };
   }
   
   // Default to journal
