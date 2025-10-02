@@ -1,11 +1,10 @@
 {
   "version": 2,
-  "buildCommand": "npm run build",
+  "buildCommand": "CI=false npx react-scripts build",
   "outputDirectory": "build",
   "installCommand": "npm ci",
   "framework": "create-react-app",
   "env": {
-    "CI": "false",
     "REACT_APP_API_URL": "https://lyfe-production.up.railway.app",
     "NODE_ENV": "production"
   }
