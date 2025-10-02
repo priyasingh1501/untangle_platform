@@ -98,7 +98,10 @@ class EmailParsingService {
       // Check if email contains expense-related keywords
       const expenseKeywords = [
         'receipt', 'invoice', 'bill', 'payment', 'purchase', 'expense',
-        'transaction', 'order', 'refund', 'refunded', 'paid', 'charge'
+        'transaction', 'order', 'refund', 'refunded', 'paid', 'charge',
+        'total', 'amount', 'cost', 'price', 'fee', 'subscription',
+        'booking', 'reservation', 'ticket', 'delivery', 'shipping',
+        'tax', 'gst', 'vat', 'discount', 'coupon', 'promo'
       ];
       
       const hasExpenseKeywords = expenseKeywords.some(keyword => 
@@ -129,7 +132,7 @@ class EmailParsingService {
       }
 
       // Use OpenAI to extract expense data
-      const extractedData = await this.extractExpenseDataWithAI(contentToAnalyze, attachmentData);
+      const extractedData = await this.extractExpenseDataWithAI(contentToAnalyze, attachmentData, emailData);
       
       return {
         ...extractedData,
@@ -171,7 +174,7 @@ class EmailParsingService {
   /**
    * Use OpenAI to extract expense data from email content and attachments
    */
-  async extractExpenseDataWithAI(emailContent, attachments = []) {
+  async extractExpenseDataWithAI(emailContent, attachments = [], emailData = {}) {
     try {
       const messages = [
         {
@@ -179,7 +182,8 @@ class EmailParsingService {
           content: [
             {
               type: "text",
-              text: `Analyze this email for expense information and extract the following data in JSON format:
+              text: `Analyze this email for expense information and extract the following data in JSON format. This could be from any vendor (Amazon, Uber, Starbucks, restaurants, online stores, etc.) with different email formats:
+
               {
                 "amount": "total amount (number only, null if not found)",
                 "description": "brief description of the expense",
@@ -193,7 +197,15 @@ class EmailParsingService {
               Email content:
               ${emailContent}
               
-              Focus on finding the total amount, merchant name, and what was purchased. If any field cannot be determined with reasonable confidence, use null.`
+              IMPORTANT INSTRUCTIONS:
+              1. Look for amounts in various formats: ₹450, $25.99, USD 50, INR 1000, etc.
+              2. Extract vendor names from sender addresses, company names, or merchant mentions
+              3. Identify what was purchased from item descriptions, order details, or receipt content
+              4. Determine category based on vendor type and purchase items
+              5. Look for dates in various formats: "Jan 15, 2024", "15/01/2024", "2024-01-15", etc.
+              6. Handle different languages and currencies
+              7. If information is unclear or missing, use null for that field
+              8. Set confidence to "low" if you're unsure about any extracted data`
             }
           ]
         }
@@ -234,10 +246,12 @@ class EmailParsingService {
       }
 
       // Validate and clean the extracted data
+      const vendor = extractedData.vendor || this.extractVendorFromEmail(emailData);
+      
       return {
         amount: extractedData.amount ? parseFloat(extractedData.amount) : 0,
         description: extractedData.description || 'Expense from email',
-        vendor: extractedData.vendor || 'Unknown',
+        vendor: vendor,
         category: this.validateCategory(extractedData.category),
         date: extractedData.date || null,
         paymentMethod: this.validatePaymentMethod(extractedData.paymentMethod),
@@ -297,6 +311,51 @@ class EmailParsingService {
       source: 'email_fallback',
       needsManualReview: true
     };
+  }
+
+  /**
+   * Extract vendor information from email metadata
+   */
+  extractVendorFromEmail(emailData) {
+    const { from, subject, text } = emailData;
+    
+    // Common vendor patterns
+    const vendorPatterns = [
+      { pattern: /amazon/i, vendor: 'Amazon' },
+      { pattern: /uber/i, vendor: 'Uber' },
+      { pattern: /swiggy/i, vendor: 'Swiggy' },
+      { pattern: /zomato/i, vendor: 'Zomato' },
+      { pattern: /starbucks/i, vendor: 'Starbucks' },
+      { pattern: /mcdonald/i, vendor: 'McDonald\'s' },
+      { pattern: /domino/i, vendor: 'Domino\'s' },
+      { pattern: /pizza hut/i, vendor: 'Pizza Hut' },
+      { pattern: /netflix/i, vendor: 'Netflix' },
+      { pattern: /spotify/i, vendor: 'Spotify' },
+      { pattern: /google/i, vendor: 'Google' },
+      { pattern: /apple/i, vendor: 'Apple' },
+      { pattern: /microsoft/i, vendor: 'Microsoft' },
+      { pattern: /adobe/i, vendor: 'Adobe' },
+      { pattern: /booking/i, vendor: 'Booking.com' },
+      { pattern: /airbnb/i, vendor: 'Airbnb' },
+      { pattern: /ola/i, vendor: 'Ola' },
+      { pattern: /rapido/i, vendor: 'Rapido' }
+    ];
+
+    // Check sender email domain
+    for (const { pattern, vendor } of vendorPatterns) {
+      if (pattern.test(from) || pattern.test(subject) || pattern.test(text)) {
+        return vendor;
+      }
+    }
+
+    // Extract from sender email domain
+    if (from && from.includes('@')) {
+      const domain = from.split('@')[1];
+      const cleanDomain = domain.replace(/\.(com|in|co\.in|org|net)$/, '');
+      return cleanDomain.charAt(0).toUpperCase() + cleanDomain.slice(1);
+    }
+
+    return 'Unknown';
   }
 
   /**
