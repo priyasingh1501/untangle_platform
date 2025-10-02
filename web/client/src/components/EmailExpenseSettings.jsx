@@ -96,7 +96,7 @@ const EmailExpenseSettings = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1E49C9]"></div>
       </div>
     );
   }
@@ -105,7 +105,7 @@ const EmailExpenseSettings = () => {
     <div className="max-w-4xl mx-auto p-6 space-y-6">
       <div className="bg-white rounded-lg shadow-sm border p-6">
         <div className="flex items-center space-x-3 mb-6">
-          <Mail className="h-6 w-6 text-blue-600" />
+          <Mail className="h-6 w-6 text-[#1E49C9]" />
           <h2 className="text-2xl font-bold text-gray-900">Email Expense Forwarding</h2>
         </div>
 
@@ -120,7 +120,7 @@ const EmailExpenseSettings = () => {
             </div>
             <button
               onClick={copyToClipboard}
-              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="flex items-center space-x-2 px-4 py-2 bg-[#1E49C9] text-white rounded-lg hover:bg-[#1E49C9]/90 transition-colors border border-[rgba(255,255,255,0.2)]"
             >
               {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
               <span>{copied ? 'Copied!' : 'Copy'}</span>
@@ -132,9 +132,9 @@ const EmailExpenseSettings = () => {
         </div>
 
         {/* Instructions */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <h3 className="font-semibold text-blue-900 mb-2">How to Use:</h3>
-          <ol className="list-decimal list-inside space-y-1 text-sm text-blue-800">
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+          <h3 className="font-semibold text-gray-900 mb-2">How to Use:</h3>
+          <ol className="list-decimal list-inside space-y-1 text-sm text-gray-700">
             <li>Copy your unique forwarding email above</li>
             <li>Forward receipts, invoices, or expense emails to this address</li>
             <li>Our AI will automatically extract expense details</li>
@@ -145,7 +145,7 @@ const EmailExpenseSettings = () => {
         {/* Settings */}
         <div className="space-y-6">
           <h3 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
-            <Settings className="h-5 w-5" />
+            <Settings className="h-5 w-5 text-[#1E49C9]" />
             <span>Settings</span>
           </h3>
 
@@ -163,7 +163,7 @@ const EmailExpenseSettings = () => {
                   onChange={(e) => handleSettingChange('autoParse', e.target.checked)}
                   className="sr-only peer"
                 />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[#1E49C9]/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#1E49C9]"></div>
               </label>
             </div>
 
@@ -173,7 +173,7 @@ const EmailExpenseSettings = () => {
               <select
                 value={settings.defaultCategory}
                 onChange={(e) => handleSettingChange('defaultCategory', e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#1E49C9]/30"
               >
                 <option value="food">Food</option>
                 <option value="transportation">Transportation</option>
@@ -197,7 +197,7 @@ const EmailExpenseSettings = () => {
               <select
                 value={settings.defaultPaymentMethod}
                 onChange={(e) => handleSettingChange('defaultPaymentMethod', e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#1E49C9]/30"
               >
                 <option value="cash">Cash</option>
                 <option value="credit-card">Credit Card</option>
@@ -221,7 +221,7 @@ const EmailExpenseSettings = () => {
                   onChange={(e) => handleSettingChange('requireConfirmation', e.target.checked)}
                   className="sr-only peer"
                 />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[#1E49C9]/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#1E49C9]"></div>
               </label>
             </div>
           </div>
@@ -242,7 +242,7 @@ const EmailExpenseSettings = () => {
                   onChange={(e) => handleSettingChange('notificationOnSuccess', e.target.checked)}
                   className="sr-only peer"
                 />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[#1E49C9]/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#1E49C9]"></div>
               </label>
             </div>
 
@@ -258,7 +258,7 @@ const EmailExpenseSettings = () => {
                   onChange={(e) => handleSettingChange('notificationOnFailure', e.target.checked)}
                   className="sr-only peer"
                 />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[#1E49C9]/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#1E49C9]"></div>
               </label>
             </div>
           </div>
@@ -269,11 +269,11 @@ const EmailExpenseSettings = () => {
           <h4 className="font-medium text-gray-900 mb-3">Statistics</h4>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">{stats.totalEmailsProcessed}</div>
+              <div className="text-2xl font-bold text-[#1E49C9]">{stats.totalEmailsProcessed}</div>
               <div className="text-sm text-gray-600">Emails Processed</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">{stats.totalExpensesCreated}</div>
+              <div className="text-2xl font-bold text-[#1E49C9]">{stats.totalExpensesCreated}</div>
               <div className="text-sm text-gray-600">Expenses Created</div>
             </div>
             <div className="text-center">
@@ -291,7 +291,7 @@ const EmailExpenseSettings = () => {
         {/* Error Display */}
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center space-x-2">
-            <AlertCircle className="h-5 w-5 text-red-600" />
+            <AlertCircle className="h-5 w-5 text-[#1E49C9]" />
             <span className="text-red-800">{error}</span>
           </div>
         )}
@@ -301,7 +301,7 @@ const EmailExpenseSettings = () => {
           <button
             onClick={handleSaveSettings}
             disabled={saving}
-            className="flex items-center space-x-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="flex items-center space-x-2 px-6 py-2 bg-[#1E49C9] text-white rounded-lg hover:bg-[#1E49C9]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors border border-[rgba(255,255,255,0.2)]"
           >
             {saving ? (
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
