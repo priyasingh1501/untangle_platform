@@ -1330,9 +1330,9 @@ const Finance = () => {
               icon={<Mail className="h-5 w-5 text-[#1E49C9]" />}
             >
               <div className="space-y-6">
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <div>
                   <h3 className="font-semibold text-gray-900 mb-3">How It Works:</h3>
-                  <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700">
+                  <ol className="list-decimal list-inside space-y-2 text-sm text-gray-600">
                     <li>Get your unique forwarding email address</li>
                     <li>Forward receipts, invoices, or expense emails to this address</li>
                     <li>Our AI automatically extracts expense details</li>
@@ -1340,12 +1340,12 @@ const Finance = () => {
                   </ol>
                 </div>
                 
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <div>
                   <div className="flex items-center space-x-2 mb-3">
                     <CheckCircle className="h-5 w-5 text-[#1E49C9]" />
                     <h3 className="font-semibold text-gray-900">Supported Formats</h3>
                   </div>
-                  <p className="text-sm text-gray-700">
+                  <p className="text-sm text-gray-600">
                     PDF receipts, image attachments, and text-based invoices are all supported.
                   </p>
                 </div>

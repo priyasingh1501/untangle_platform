@@ -46,10 +46,6 @@ const EmailExpenseSettings = () => {
         setForwardingEmail(data.forwardingEmail);
         setSettings(data.settings);
         setStats(data.stats);
-      } else if (response.status === 404) {
-        // Email forwarding not set up yet, create default settings
-        setForwardingEmail('user@expenses.untangle.app');
-        setError('');
       } else {
         setError('Failed to load email settings');
       }
@@ -115,15 +111,13 @@ const EmailExpenseSettings = () => {
 
   return (
     <div className="space-y-6">
-      <div className="space-y-6">
-
-        {/* Forwarding Email Display */}
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+      {/* Forwarding Email Display */}
+      <div>
           <label className="block text-sm font-medium text-gray-900 mb-3">
             Your Unique Forwarding Email
           </label>
           <div className="flex items-center space-x-3 mb-3">
-            <div className="flex-1 bg-white border border-gray-300 rounded-lg px-4 py-3 font-mono text-sm">
+            <div className="flex-1 bg-gray-50 border border-gray-300 rounded-lg px-4 py-3 font-mono text-sm">
               {forwardingEmail}
             </div>
             <button
@@ -139,19 +133,19 @@ const EmailExpenseSettings = () => {
           </p>
         </div>
 
-        {/* Instructions */}
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
-          <h3 className="font-semibold text-gray-900 mb-3">How to Use:</h3>
-          <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700">
-            <li>Copy your unique forwarding email above</li>
-            <li>Forward receipts, invoices, or expense emails to this address</li>
-            <li>Our AI will automatically extract expense details</li>
-            <li>Review and confirm the parsed information</li>
-          </ol>
-        </div>
+      {/* Instructions */}
+      <div>
+        <h3 className="font-semibold text-gray-900 mb-3">How to Use:</h3>
+        <ol className="list-decimal list-inside space-y-2 text-sm text-gray-600">
+          <li>Copy your unique forwarding email above</li>
+          <li>Forward receipts, invoices, or expense emails to this address</li>
+          <li>Our AI will automatically extract expense details</li>
+          <li>Review and confirm the parsed information</li>
+        </ol>
+      </div>
 
-        {/* Settings */}
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+      {/* Settings */}
+      <div>
           <h3 className="text-lg font-semibold text-gray-900 flex items-center space-x-2 mb-4">
             <Settings className="h-5 w-5 text-[#1E49C9]" />
             <span>Settings</span>
@@ -296,7 +290,7 @@ const EmailExpenseSettings = () => {
           </div>
         </div>
 
-        {/* Error Display */}
+      {/* Error Display */}
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center space-x-2">
             <AlertCircle className="h-5 w-5 text-[#1E49C9]" />
@@ -304,8 +298,8 @@ const EmailExpenseSettings = () => {
           </div>
         )}
 
-        {/* Save Button */}
-        <div className="flex justify-end mt-6">
+      {/* Save Button */}
+      <div className="flex justify-end">
           <button
             onClick={handleSaveSettings}
             disabled={saving}
@@ -319,7 +313,6 @@ const EmailExpenseSettings = () => {
             <span>{saving ? 'Saving...' : 'Save Settings'}</span>
           </button>
         </div>
-      </div>
     </div>
   );
 };

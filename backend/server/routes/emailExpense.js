@@ -99,13 +99,16 @@ router.get('/forwarding-email', auth, async (req, res) => {
 // Get email forwarding settings
 router.get('/settings', auth, async (req, res) => {
   try {
+    // This will automatically create a forwarding email if it doesn't exist
+    const forwardingEmail = await EmailForwarding.getForwardingEmail(req.user.userId);
+    
     const forwarding = await EmailForwarding.findOne({ 
       userId: req.user.userId,
       isActive: true 
     });
 
     if (!forwarding) {
-      return res.status(404).json({ message: 'Email forwarding not set up' });
+      return res.status(500).json({ message: 'Failed to create forwarding email' });
     }
 
     res.json({
