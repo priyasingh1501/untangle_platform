@@ -402,7 +402,19 @@ router.get('/trends', auth, async (req, res) => {
     // If no cache or needs refresh, generate new trends
     const journal = await Journal.findOne({ userId });
     if (!journal) {
-      return res.status(404).json({ message: 'Journal not found' });
+      console.log('Journal not found in database, returning empty trends');
+      return res.json({
+        message: 'No journal entries found',
+        trendAnalysis: {
+          sentimentTrend: 'stable',
+          commonTopics: [],
+          evolvingBeliefs: [],
+          summary: 'No journal entries available for trend analysis.'
+        },
+        analyzedEntries: 0,
+        totalEntries: 0,
+        cached: false
+      });
     }
     
     // Get recent entries with analysis
@@ -507,7 +519,19 @@ router.post('/trends/refresh', auth, async (req, res) => {
     // Get journal entries
     const journal = await Journal.findOne({ userId });
     if (!journal) {
-      return res.status(404).json({ message: 'Journal not found' });
+      console.log('Journal not found in database, returning empty trends for refresh');
+      return res.json({
+        message: 'No journal entries found',
+        trendAnalysis: {
+          sentimentTrend: 'stable',
+          commonTopics: [],
+          evolvingBeliefs: [],
+          summary: 'No journal entries available for trend analysis.'
+        },
+        analyzedEntries: 0,
+        totalEntries: 0,
+        lastUpdated: new Date()
+      });
     }
     
     // Get recent entries with analysis
