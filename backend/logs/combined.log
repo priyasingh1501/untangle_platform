@@ -419,3 +419,7 @@
 {"ip":"173.252.95.12","level":"info","message":"POST /api/whatsapp/webhook","service":"untangle-platform","timestamp":"2025-10-02 15:52:45","userAgent":"facebookexternalua"}
 {"ip":"173.252.79.113","level":"info","message":"POST /api/whatsapp/webhook","service":"untangle-platform","timestamp":"2025-10-02 15:52:48","userAgent":"facebookexternalua"}
 {"ip":"173.252.79.115","level":"info","message":"POST /api/whatsapp/webhook","service":"untangle-platform","timestamp":"2025-10-02 15:52:49","userAgent":"facebookexternalua"}
+{"ip":"127.0.0.1","level":"info","message":"GET /api/health","service":"untangle-platform","timestamp":"2025-10-02 17:02:56","userAgent":"curl/8.7.1"}
+{"ip":"127.0.0.1","level":"info","message":"GET /api/health","service":"untangle-platform","timestamp":"2025-10-02 17:13:12","userAgent":"curl/8.7.1"}
+{"ip":"127.0.0.1","level":"info","message":"GET /api/health","service":"untangle-platform","timestamp":"2025-10-02 17:23:38","userAgent":"curl/8.7.1"}
+{"ip":"127.0.0.1","level":"info","message":"POST /api/email-expense/process-email","service":"untangle-platform","timestamp":"2025-10-02 17:33:20","userAgent":"curl/8.7.1"}
