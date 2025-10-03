@@ -134,17 +134,72 @@ async function loginWithCredentials(phoneNumber, email, password) {
 }
 
 // Check if a user is authenticated
-function isUserAuthenticated(phoneNumber) {
+async function isUserAuthenticated(phoneNumber) {
+  // First check in-memory cache
   const session = phoneToEmailMap.get(phoneNumber);
-  return !!session;
+  if (session) {
+    return true;
+  }
+  
+  // If not in cache, check database
+  try {
+    const dbSession = await WhatsAppSession.findOne({ 
+      phoneNumber, 
+      isActive: true, 
+      expiresAt: { $gt: new Date() } 
+    });
+    
+    if (dbSession) {
+      // Restore to cache
+      phoneToEmailMap.set(phoneNumber, {
+        email: dbSession.email,
+        userId: dbSession.userId,
+        name: dbSession.name,
+        linkedAt: dbSession.linkedAt,
+        sessionToken: dbSession.sessionToken
+      });
+      console.log(`🔄 Restored WhatsApp session for ${phoneNumber} from database`);
+      return true;
+    }
+  } catch (error) {
+    console.error('Error checking WhatsApp session in database:', error);
+  }
+  
+  return false;
 }
 
 // Get the authenticated user object
 async function getAuthenticatedUser(phoneNumber) {
+  // First check in-memory cache
   const session = phoneToEmailMap.get(phoneNumber);
   if (session && session.userId) {
     return await User.findById(session.userId);
   }
+  
+  // If not in cache, check database
+  try {
+    const dbSession = await WhatsAppSession.findOne({ 
+      phoneNumber, 
+      isActive: true, 
+      expiresAt: { $gt: new Date() } 
+    });
+    
+    if (dbSession) {
+      // Restore to cache
+      phoneToEmailMap.set(phoneNumber, {
+        email: dbSession.email,
+        userId: dbSession.userId,
+        name: dbSession.name,
+        linkedAt: dbSession.linkedAt,
+        sessionToken: dbSession.sessionToken
+      });
+      console.log(`🔄 Restored WhatsApp session for ${phoneNumber} from database`);
+      return await User.findById(dbSession.userId);
+    }
+  } catch (error) {
+    console.error('Error getting authenticated user from database:', error);
+  }
+  
   return null;
 }
 
@@ -190,7 +245,7 @@ async function handleAuthCommands(phoneNumber, messageText) {
   let handled = false;
 
   // Check if already authenticated
-  if (isUserAuthenticated(phoneNumber)) {
+  if (await isUserAuthenticated(phoneNumber)) {
     const user = await getAuthenticatedUser(phoneNumber);
     if (text === 'logout') {
       const result = await logoutUser(phoneNumber);

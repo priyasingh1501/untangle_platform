@@ -11,7 +11,7 @@ const { getAuthenticatedUser, isUserAuthenticated } = require('./whatsappAuthSer
 async function getUserByPhone(phoneNumber) {
   try {
     // First check if user is authenticated
-    if (isUserAuthenticated(phoneNumber)) {
+    if (await isUserAuthenticated(phoneNumber)) {
       const user = await getAuthenticatedUser(phoneNumber);
       if (user) {
         console.log(`👤 Using authenticated user: ${user.email}`);
