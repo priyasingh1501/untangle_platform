@@ -71,7 +71,13 @@ async function saveExpense(phoneNumber, expenseData) {
 // Save food data with meal creation
 async function saveFood(phoneNumber, foodData) {
   try {
-    const user = await getUserByPhone(phoneNumber);
+    // Set a shorter timeout for WhatsApp operations
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('WhatsApp food save timeout')), 5000)
+    );
+    
+    const userPromise = getUserByPhone(phoneNumber);
+    const user = await Promise.race([userPromise, timeoutPromise]);
     
     // Helper to save basic FoodTracking
     const saveBasicFood = async () => {
@@ -121,9 +127,38 @@ async function saveFood(phoneNumber, foodData) {
           fermented: false,
           omega3Tag: false,
           addedSugar: 0
+        },
+        // Skip AI analysis for WhatsApp - just basic computed data
+        computed: {
+          totals: {
+            kcal: 0,
+            protein: 0,
+            carbs: 0,
+            fat: 0,
+            fiber: 0,
+            sugar: 0,
+            vitaminC: 0,
+            zinc: 0,
+            selenium: 0,
+            iron: 0,
+            omega3: 0
+          },
+          badges: {
+            protein: false,
+            veg: false,
+            gi: 0,
+            fodmap: 'Unknown',
+            nova: 0
+          },
+          mindfulMealScore: 3,
+          rationale: ['Basic meal logged via WhatsApp'],
+          tip: 'Consider adding more details for better analysis',
+          aiInsights: null,
+          effects: {}
         }
       });
-      const savedMeal = await meal.save();
+      const savePromise = meal.save();
+      const savedMeal = await Promise.race([savePromise, timeoutPromise]);
       console.log(`🍽️ Saved meal with ${mealItems.length} items: ${savedMeal._id}`);
       return savedMeal;
     } catch (mealError) {
