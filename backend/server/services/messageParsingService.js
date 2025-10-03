@@ -60,8 +60,9 @@ function classifyMessageFallback(messageText) {
   }
   
   // Check for food indicators (more specific)
-  if ((text.match(/(ate|eating|breakfast|lunch|dinner|snack|food|meal)/) ||
-      text.match(/(swiggy|zomato|foodpanda|ubereats)/)) &&
+  if ((text.match(/(ate|eating|breakfast|lunch|dinner|snack|food|meal|log|had|drank|drink)/) ||
+      text.match(/(swiggy|zomato|foodpanda|ubereats)/) ||
+      text.match(/(coffee|tea|milk|juice|water|soda|beer|wine)/)) &&
       !text.match(/(grateful|thankful|feeling|thinking|work|life)/)) {
     return { type: 'food', confidence: 0.8, reasoning: 'Contains food-related keywords' };
   }
@@ -186,8 +187,9 @@ async function parseFood(messageText) {
     
     Examples:
     "ate breakfast - toast and eggs" → {"mealType": "breakfast", "description": "toast and eggs", "foodItems": ["toast", "eggs"], "calories": 300}
-    "lunch at office canteen" → {"mealType": "lunch", "description": "office canteen", "foodItems": [], "calories": 500}
+    "log coffee" → {"mealType": "snack", "description": "coffee", "foodItems": ["coffee"], "calories": 50}
     "had rice, dal, and vegetables" → {"mealType": "lunch", "description": "rice, dal, and vegetables", "foodItems": ["rice", "dal", "vegetables"], "calories": 400}
+    "drank tea" → {"mealType": "snack", "description": "tea", "foodItems": ["tea"], "calories": 20}
     `;
 
     const response = await openai.chat.completions.create({
@@ -225,8 +227,8 @@ function parseFoodFallback(messageText) {
   else if (text.includes('lunch')) mealType = 'lunch';
   else if (text.includes('dinner')) mealType = 'dinner';
   
-  // Extract description (everything after "ate" or meal type)
-  const description = text.replace(/(ate|breakfast|lunch|dinner|snack)\s*-?\s*/, '').trim() || 'food';
+  // Extract description (everything after "ate", "log", "had", "drank" or meal type)
+  const description = text.replace(/(ate|log|had|drank|breakfast|lunch|dinner|snack)\s*-?\s*/, '').trim() || 'food';
   
   // Try to extract food items from description
   const foodItems = [];
