@@ -232,13 +232,18 @@ function parseFoodFallback(messageText) {
   
   // Try to extract food items from description
   const foodItems = [];
-  const commonFoods = ['rice', 'dal', 'bread', 'toast', 'eggs', 'coffee', 'tea', 'milk', 'vegetables', 'chicken', 'fish', 'paneer', 'curry', 'soup', 'salad', 'fruit', 'apple', 'banana', 'orange'];
+  const commonFoods = ['rice', 'dal', 'bread', 'toast', 'eggs', 'coffee', 'tea', 'milk', 'vegetables', 'chicken', 'fish', 'paneer', 'curry', 'soup', 'salad', 'fruit', 'apple', 'banana', 'orange', 'water', 'juice', 'soda', 'beer', 'wine'];
   
   commonFoods.forEach(food => {
     if (description.toLowerCase().includes(food)) {
       foodItems.push(food);
     }
   });
+  
+  // If no specific food items found, use the description as a single item
+  if (foodItems.length === 0 && description !== 'food') {
+    foodItems.push(description);
+  }
   
   return {
     mealType,
