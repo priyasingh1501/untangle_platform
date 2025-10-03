@@ -2,9 +2,22 @@ const OpenAI = require('openai');
 
 class OpenAIService {
   constructor() {
-    this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
+    try {
+      if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === 'sk-test-key-for-development') {
+        console.warn('⚠️ OpenAI API key not configured or is test key');
+        this.openai = null;
+        return;
+      }
+      
+      this.openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
+      
+      console.log('✅ OpenAI client initialized successfully');
+    } catch (error) {
+      console.error('❌ Failed to initialize OpenAI client:', error.message);
+      this.openai = null;
+    }
   }
 
   /**
@@ -14,6 +27,11 @@ class OpenAIService {
    * @returns {String} Generated insights
    */
   async generateInsights(userData, conversationHistory = []) {
+    if (!this.openai) {
+      console.warn('⚠️ OpenAI not available, returning fallback insights');
+      return 'I\'m currently unable to generate AI insights. Please try again later.';
+    }
+    
     try {
       const prompt = this.buildInsightPrompt(userData, conversationHistory);
       
@@ -48,6 +66,11 @@ class OpenAIService {
    * @returns {Object} Enhanced effect analysis with AI insights
    */
   async analyzeMealEffects(mealData, userProfile, ruleBasedEffects) {
+    if (!this.openai) {
+      console.warn('⚠️ OpenAI not available, returning rule-based effects');
+      return ruleBasedEffects;
+    }
+    
     try {
       const prompt = this.buildMealAnalysisPrompt(mealData, userProfile, ruleBasedEffects);
       
