@@ -19,8 +19,35 @@ class EncryptionService {
       console.warn('⚠️ Using fallback encryption key. Set ENCRYPTION_KEY environment variable for production.');
     }
     
+    // Validate encryption key format
+    this.validateEncryptionKey();
+    
     // Convert hex key to buffer
     this.keyBuffer = Buffer.from(this.encryptionKey, 'hex');
+  }
+
+  // Validate encryption key format
+  validateEncryptionKey() {
+    if (!this.encryptionKey) {
+      throw new Error('ENCRYPTION_KEY is required');
+    }
+    
+    // Check if it's a valid hex string
+    if (!/^[0-9a-fA-F]+$/.test(this.encryptionKey)) {
+      throw new Error('ENCRYPTION_KEY must be a valid hexadecimal string');
+    }
+    
+    // Check minimum length (32 characters = 16 bytes for AES-256)
+    if (this.encryptionKey.length < 32) {
+      throw new Error('ENCRYPTION_KEY must be at least 32 characters long');
+    }
+    
+    // Check if key length is even (hex strings should have even length)
+    if (this.encryptionKey.length % 2 !== 0) {
+      throw new Error('ENCRYPTION_KEY must have even length (hex string)');
+    }
+    
+    console.log(`[EncryptionService] Using encryption key with length: ${this.encryptionKey.length} characters`);
   }
 
   // Encrypt sensitive data
@@ -29,15 +56,17 @@ class EncryptionService {
       if (!text) return text;
       
       const iv = crypto.randomBytes(this.ivLength);
-      const cipher = crypto.createCipher(this.algorithm, this.keyBuffer);
+      const cipher = crypto.createCipherGCM(this.algorithm, this.keyBuffer, iv);
       
       let encrypted = cipher.update(text, 'utf8', 'hex');
       encrypted += cipher.final('hex');
       
+      const tag = cipher.getAuthTag();
+      
       return {
         encrypted,
         iv: iv.toString('hex'),
-        tag: '' // Not used in createCipher
+        tag: tag.toString('hex')
       };
     } catch (error) {
       console.error('Encryption error:', error);
@@ -57,7 +86,19 @@ class EncryptionService {
         return encryptedData;
       }
       
-      const decipher = crypto.createDecipher(this.algorithm, this.keyBuffer);
+      // Handle legacy data without tag (backward compatibility)
+      if (!tag) {
+        console.warn('Decrypting legacy data without authentication tag');
+        const decipher = crypto.createDecipher(this.algorithm, this.keyBuffer);
+        let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+        decrypted += decipher.final('utf8');
+        return decrypted;
+      }
+      
+      const ivBuffer = Buffer.from(iv, 'hex');
+      const tagBuffer = Buffer.from(tag, 'hex');
+      const decipher = crypto.createDecipherGCM(this.algorithm, this.keyBuffer, ivBuffer);
+      decipher.setAuthTag(tagBuffer);
       
       let decrypted = decipher.update(encrypted, 'hex', 'utf8');
       decrypted += decipher.final('utf8');

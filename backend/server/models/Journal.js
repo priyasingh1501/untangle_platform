@@ -162,7 +162,17 @@ journalEntrySchema.methods.getDecryptedEntry = function() {
       entry.title = encryptionService.decrypt(this.encryptedTitle);
     }
   } catch (error) {
-    console.error('Error decrypting journal entry:', error);
+    console.error('Error decrypting journal entry:', {
+      entryId: this._id,
+      error: error.message,
+      hasEncryptedContent: !!this.encryptedContent,
+      hasEncryptedTitle: !!this.encryptedTitle
+    });
+    
+    // Graceful fallback - return entry with error message
+    entry.content = entry.content || '[Error: Unable to decrypt content]';
+    entry.title = entry.title || '[Error: Unable to decrypt title]';
+    entry._decryptionError = true;
   }
   
   return entry;

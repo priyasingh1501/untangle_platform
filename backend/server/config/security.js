@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const securityConfig = {
   // JWT Configuration
   jwt: {
-    accessTokenExpiry: '15m', // 15 minutes
+    accessTokenExpiry: '1h', // 1 hour (increased from 15 minutes)
     refreshTokenExpiry: '7d', // 7 days
     algorithm: 'HS256',
     issuer: 'untangle-platform',

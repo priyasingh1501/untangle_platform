@@ -10,8 +10,8 @@ const sessionService = new SessionService();
 // Enhanced authentication middleware
 const auth = async (req, res, next) => {
   try {
-    // Skip authentication in test environment
-    if (process.env.NODE_ENV === 'test' || process.env.DISABLE_AUTH === 'true') {
+    // Only skip authentication in test environment with explicit test flag
+    if (process.env.NODE_ENV === 'test' && process.env.TEST_MODE === 'true') {
       // Set a mock user for tests - use a consistent ObjectId format
       req.user = { _id: '507f1f77bcf86cd799439011', email: 'test@example.com' };
       return next();

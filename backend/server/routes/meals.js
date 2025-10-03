@@ -172,18 +172,37 @@ router.post('/', auth, async (req, res) => {
   try {
     console.log('🍽️ MEAL CREATION REQUEST RECEIVED');
     console.log('🍽️ Request body:', JSON.stringify(req.body, null, 2));
-    const userId = req.user._id;
+    const userId = req.user._id || req.user.userId || req.user.id;
     const { ts, items, notes, context, skipAI: skipAIBody } = req.body;
     const skipAI = (req.query.skipAI === 'true') || skipAIBody === true || (req.headers['x-skip-ai'] === 'true');
 
-    if (!items || !Array.isArray(items) || items.length === 0) {
+    // Handle both array and object formats for items
+    let itemsArray = items;
+    if (!items) {
+      return res.status(400).json({
+        message: 'At least one food item is required'
+      });
+    }
+    
+    // Convert object to array if needed (e.g., {"0": {...}, "1": {...}})
+    if (!Array.isArray(items)) {
+      if (typeof items === 'object') {
+        itemsArray = Object.values(items);
+      } else {
+        return res.status(400).json({
+          message: 'Items must be an array or object'
+        });
+      }
+    }
+    
+    if (itemsArray.length === 0) {
       return res.status(400).json({
         message: 'At least one food item is required'
       });
     }
 
     // Validate items
-    for (const item of items) {
+    for (const item of itemsArray) {
       if (!item.foodId || !item.grams || item.grams <= 0) {
         return res.status(400).json({
           message: 'Each item must have a valid foodId and grams > 0'
@@ -192,11 +211,11 @@ router.post('/', auth, async (req, res) => {
     }
 
     // Separate local and external food IDs
-    const localFoodIds = items.filter(item => 
+    const localFoodIds = itemsArray.filter(item => 
       /^[0-9a-fA-F]{24}$/.test(item.foodId)
     ).map(item => item.foodId);
     
-    const externalFoodIds = items.filter(item => 
+    const externalFoodIds = itemsArray.filter(item => 
       !/^[0-9a-fA-F]{24}$/.test(item.foodId)
     );
 
@@ -247,14 +266,14 @@ router.post('/', auth, async (req, res) => {
     // No longer block save if some external foods were not fetched; placeholders were added above
 
     // Prepare items with food data
-    const mealItems = items.map(item => ({
+    const mealItems = itemsArray.map(item => ({
       foodId: item.foodId,
       customName: item.customName || foodMap.get(item.foodId)?.name || 'Unknown Food',
       grams: item.grams
     }));
 
     // Aggregate nutrients
-    const itemsWithFood = items.map(item => ({
+    const itemsWithFood = itemsArray.map(item => ({
       food: foodMap.get(item.foodId),
       grams: item.grams
     }));

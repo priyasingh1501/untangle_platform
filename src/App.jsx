@@ -5,6 +5,7 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Layout from './components/Layout/Layout';
 import { PWAInstall, MobileNav, MobileInstallGuide } from './components/ui';
+import SessionMigration from './components/SessionMigration';
 import Dashboard from './pages/Dashboard';
 import Finance from './pages/Finance';
 import Journal from './pages/Journal';
@@ -91,6 +92,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
+        <SessionMigration />
         <Router>
           <div className="App">
                         <Toaster

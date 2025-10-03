@@ -5,7 +5,7 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     setupFiles: ['./server/__tests__/setup.js'],
-    include: ['server/**/*.test.js'],
+    include: ['server/**/*.test.js', 'server/**/*.test.mjs'],
     exclude: [
       '**/node_modules/**',
       '**/e2e-tests/**',

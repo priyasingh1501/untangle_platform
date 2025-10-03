@@ -549,7 +549,7 @@ router.post('/refresh-token', auth, async (req, res) => {
     }
 
     // Generate new tokens
-    const tokens = jwtService.generateTokens({
+    const tokens = jwtService.generateTokenPair({
       userId: user._id,
       email: user.email,
       role: user.role

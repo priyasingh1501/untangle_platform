@@ -5,16 +5,36 @@ const { securityLogger } = require('../config/logger');
 
 class JWTService {
   constructor() {
-    this.accessTokenSecret = process.env.JWT_SECRET || 'fallback-jwt-secret-for-development-only';
-    this.refreshTokenSecret = process.env.JWT_REFRESH_SECRET || 'fallback-refresh-secret-for-development-only';
+    this.accessTokenSecret = process.env.JWT_SECRET;
+    this.refreshTokenSecret = process.env.JWT_REFRESH_SECRET;
     
+    // CRITICAL: Reject fallback secrets in production
     if (!this.accessTokenSecret || !this.refreshTokenSecret) {
-      throw new Error('JWT secrets not configured');
+      throw new Error('JWT secrets not configured. Set JWT_SECRET and JWT_REFRESH_SECRET environment variables.');
     }
     
-    // Warn if using fallback secrets
-    if (this.accessTokenSecret === 'fallback-jwt-secret-for-development-only') {
-      console.warn('⚠️ Using fallback JWT secret. Set JWT_SECRET environment variable for production.');
+    // Allow test secrets in test environment
+    const isTestEnvironment = process.env.NODE_ENV === 'test';
+    
+    // Reject weak or default secrets (except in test environment)
+    if (!isTestEnvironment) {
+      if (this.accessTokenSecret === 'fallback-jwt-secret-for-development-only' ||
+          this.accessTokenSecret === 'your-super-secure-jwt-secret-key-here-minimum-64-characters' ||
+          this.accessTokenSecret.length < 64) {
+        throw new Error('JWT_SECRET is not secure. Generate a secure secret using: openssl rand -hex 64');
+      }
+      
+      if (this.refreshTokenSecret === 'fallback-refresh-secret-for-development-only' ||
+          this.refreshTokenSecret === 'your-super-secure-jwt-refresh-secret-key-here-minimum-64-characters' ||
+          this.refreshTokenSecret.length < 64) {
+        throw new Error('JWT_REFRESH_SECRET is not secure. Generate a secure secret using: openssl rand -hex 64');
+      }
+    }
+    
+    if (isTestEnvironment) {
+      console.log('✅ JWT secrets configured for testing');
+    } else {
+      console.log('✅ JWT secrets configured securely');
     }
   }
 

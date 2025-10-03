@@ -11,27 +11,47 @@ const analysisService = ServiceFactory.get('JournalAnalysisService');
 // Get user's journal
 router.get('/', auth, async (req, res) => {
   try {
+    console.log(`[Journal] Fetching journal for user: ${req.user._id}`);
+    
     let journal = await Journal.findOne({ userId: req.user._id });
     
     if (!journal) {
+      console.log(`[Journal] No journal found for user ${req.user._id}, creating new one`);
       // Create new journal if it doesn't exist
       journal = new Journal({
         userId: req.user._id,
         entries: []
       });
       await journal.save();
+      console.log(`[Journal] Created new journal for user ${req.user._id}`);
     }
     
     // Get decrypted entries
+    console.log(`[Journal] Decrypting ${journal.entries.length} entries for user ${req.user._id}`);
     const decryptedEntries = journal.getDecryptedEntries();
+    console.log(`[Journal] Successfully decrypted ${decryptedEntries.length} entries`);
     
     res.json({
       ...journal.toObject(),
       entries: decryptedEntries
     });
   } catch (error) {
-    console.error('Error fetching journal:', error);
-    res.status(500).json({ message: 'Error fetching journal' });
+    console.error('[Journal] Error fetching journal:', {
+      userId: req.user._id,
+      error: error.message,
+      stack: error.stack
+    });
+    
+    // Check if it's an encryption/decryption error
+    if (error.message.includes('decrypt') || error.message.includes('encrypt')) {
+      console.error('[Journal] Encryption/decryption error detected');
+      res.status(500).json({ 
+        message: 'Error processing journal data. Please contact support.',
+        code: 'ENCRYPTION_ERROR'
+      });
+    } else {
+      res.status(500).json({ message: 'Error fetching journal' });
+    }
   }
 });
 

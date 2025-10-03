@@ -187,3 +187,5 @@ Once set up, users can:
 - ✅ Track all email-based expenses
 
 The system becomes **completely automatic** - just forward emails and expenses appear!
+
+

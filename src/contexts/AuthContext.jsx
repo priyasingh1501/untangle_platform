@@ -233,13 +233,25 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Add axios interceptor for automatic token refresh
+  // Add axios interceptor for automatic token refresh and security updates
   useEffect(() => {
     const interceptor = axios.interceptors.response.use(
       (response) => response,
       async (error) => {
         if (error.response?.status === 401 && token) {
-          // Token expired, try to refresh
+          // Check if this is a security update (token validation error)
+          const isSecurityUpdate = error.response?.data?.message?.includes('Invalid access token') ||
+                                   error.response?.data?.code === 'INVALID_TOKEN';
+          
+          if (isSecurityUpdate) {
+            // Security update: Clear all auth data and redirect to login
+            console.log('🔐 Security update detected - clearing authentication data');
+            logout();
+            toast.info('🔐 Security update: Please log in again for enhanced protection');
+            return Promise.reject(error);
+          }
+          
+          // Regular token expiration: try to refresh
           const refreshResult = await refreshToken();
           if (refreshResult.success) {
             // Retry the original request with the new token
@@ -247,6 +259,10 @@ export const AuthProvider = ({ children }) => {
             const newToken = localStorage.getItem('token');
             originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
             return axios(originalRequest);
+          } else {
+            // Refresh failed, logout user
+            logout();
+            toast.error('Session expired. Please log in again.');
           }
         }
         return Promise.reject(error);
@@ -256,7 +272,7 @@ export const AuthProvider = ({ children }) => {
     return () => {
       axios.interceptors.response.eject(interceptor);
     };
-  }, [token]);
+  }, [token, logout, refreshToken]);
 
   const value = {
     user,
