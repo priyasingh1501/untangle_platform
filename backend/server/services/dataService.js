@@ -195,9 +195,22 @@ async function searchAndCreateMealItems(foodItems) {
         console.log(`✅ Found food item: ${foodItem.name} (${defaultGrams}g)`);
       } else {
         console.log(`❌ Food item not found: ${foodName}`);
+        // Create a basic food item entry for unknown foods
+        mealItems.push({
+          foodId: `unknown_${foodName}`,
+          customName: foodName,
+          grams: 100 // Default 100g portion
+        });
+        console.log(`📝 Created basic entry for: ${foodName} (100g)`);
       }
     } catch (error) {
       console.error(`Error searching for food item ${foodName}:`, error);
+      // Create a basic food item entry even on error
+      mealItems.push({
+        foodId: `error_${foodName}`,
+        customName: foodName,
+        grams: 100
+      });
     }
   }
   
