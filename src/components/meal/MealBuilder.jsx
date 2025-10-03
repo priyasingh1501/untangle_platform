@@ -211,7 +211,8 @@ const MealBuilder = ({ onMealSaved }) => {
   // Add food to meal
   const addFoodToMeal = useCallback((food, selectedUnit = null) => {
     // Handle different ID formats from different sources
-    const foodId = food._id || food.id || food.barcode;
+    const foodId = food._id || food.id || food.externalId || food.barcode;
+    console.log('MealBuilder: Adding food to meal:', { food, foodId, selectedUnit });
     const existingItem = mealItems.find(item => item.foodId === foodId);
     
     // Determine the portion to add - default to 1 katori if no unit specified
@@ -295,6 +296,7 @@ const MealBuilder = ({ onMealSaved }) => {
       };
 
       console.log('MealBuilder: Sending meal data:', mealData);
+      console.log('MealBuilder: mealItems before mapping:', mealItems);
       console.log('MealBuilder: Token exists:', !!token);
       
       // Show initial loading message
