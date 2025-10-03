@@ -207,7 +207,13 @@ async function searchAndCreateMealItems(foodItems) {
 // Save habit data
 async function saveHabit(phoneNumber, habitData) {
   try {
-    const user = await getUserByPhone(phoneNumber);
+    // Set a shorter timeout for WhatsApp operations
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('WhatsApp habit save timeout')), 5000)
+    );
+    
+    const userPromise = getUserByPhone(phoneNumber);
+    const user = await Promise.race([userPromise, timeoutPromise]);
     
     // Find existing habit or create new one
     let habit = await Habit.findOne({ 
@@ -243,7 +249,8 @@ async function saveHabit(phoneNumber, habitData) {
       habitData.status === 'completed' ? 'good' : 'poor'
     );
     
-    await habit.save();
+    const savePromise = habit.save();
+    await Promise.race([savePromise, timeoutPromise]);
     console.log(`✅ Saved habit check-in: ${habit._id}`);
     return habit;
   } catch (error) {
@@ -255,7 +262,13 @@ async function saveHabit(phoneNumber, habitData) {
 // Save journal data
 async function saveJournal(phoneNumber, journalData) {
   try {
-    const user = await getUserByPhone(phoneNumber);
+    // Set a shorter timeout for WhatsApp operations
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('WhatsApp journal save timeout')), 5000)
+    );
+    
+    const userPromise = getUserByPhone(phoneNumber);
+    const user = await Promise.race([userPromise, timeoutPromise]);
     
     // Find existing journal or create new one
     let journal = await Journal.findOne({ userId: user._id });
@@ -279,7 +292,7 @@ async function saveJournal(phoneNumber, journalData) {
     }
     
     // Add new encrypted entry to ensure compatibility with frontend
-    await journal.addEncryptedEntry({
+    const savePromise = journal.addEncryptedEntry({
       title: journalData.title,
       content: journalData.content,
       type: journalData.type,
@@ -291,6 +304,7 @@ async function saveJournal(phoneNumber, journalData) {
       weather: {}
     });
     
+    await Promise.race([savePromise, timeoutPromise]);
     console.log(`📝 Saved journal entry (encrypted) for user: ${user._id}`);
     return journal;
   } catch (error) {
