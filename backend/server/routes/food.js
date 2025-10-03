@@ -1099,3 +1099,9 @@ router.delete('/custom/:id', auth, async (req, res) => {
 });
 
 module.exports = router;
+
+// Export search functions for use by other services
+module.exports.searchLocalDatabase = searchLocalDatabase;
+module.exports.searchUSDADatabase = searchUSDADatabase;
+module.exports.searchOpenFoodFacts = searchOpenFoodFacts;
+module.exports.deduplicateResults = deduplicateResults;

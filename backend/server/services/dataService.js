@@ -177,53 +177,29 @@ async function searchAndCreateMealItems(foodItems) {
   
   for (const foodName of foodItems) {
     try {
-      // First try local database
-      const foodItem = await FoodItem.findOne({
-        nameFold: { $regex: foodName.toLowerCase(), $options: 'i' }
-      }).limit(1);
+      // Use the same search endpoint that the frontend uses
+      console.log(`🔍 Searching for food: ${foodName}`);
+      const searchResults = await searchFoodUsingAPI(foodName);
       
-      if (foodItem) {
-        // Found in local database
-        const defaultGrams = foodItem.portionGramsDefault || 100;
+      if (searchResults && searchResults.length > 0) {
+        // Use the first (most relevant) result
+        const food = searchResults[0];
         
         mealItems.push({
-          foodId: foodItem._id,
-          customName: foodItem.name,
-          grams: defaultGrams
+          foodId: food.externalId || food._id || `api_${foodName}`,
+          customName: food.name,
+          grams: food.portionGramsDefault || 100
         });
         
-        console.log(`✅ Found food item in local DB: ${foodItem.name} (${defaultGrams}g)`);
+        console.log(`✅ Found food via API: ${food.name} (${food.portionGramsDefault || 100}g)`);
       } else {
-        // Try external search (USDA API)
-        console.log(`🔍 Searching external APIs for: ${foodName}`);
-        try {
-          const externalFood = await searchExternalFood(foodName);
-          if (externalFood) {
-            mealItems.push({
-              foodId: externalFood.externalId || `external_${foodName}`,
-              customName: externalFood.name,
-              grams: externalFood.portionGramsDefault || 100
-            });
-            console.log(`✅ Found food item in external API: ${externalFood.name} (${externalFood.portionGramsDefault || 100}g)`);
-          } else {
-            // Create basic entry for unknown foods
-            mealItems.push({
-              foodId: `unknown_${foodName}`,
-              customName: foodName,
-              grams: 100
-            });
-            console.log(`📝 Created basic entry for: ${foodName} (100g)`);
-          }
-        } catch (externalError) {
-          console.error(`External search failed for ${foodName}:`, externalError.message);
-          // Create basic entry as fallback
-          mealItems.push({
-            foodId: `unknown_${foodName}`,
-            customName: foodName,
-            grams: 100
-          });
-          console.log(`📝 Created basic entry for: ${foodName} (100g)`);
-        }
+        // Create basic entry for unknown foods
+        mealItems.push({
+          foodId: `unknown_${foodName}`,
+          customName: foodName,
+          grams: 100
+        });
+        console.log(`📝 Created basic entry for: ${foodName} (100g)`);
       }
     } catch (error) {
       console.error(`Error searching for food item ${foodName}:`, error);
@@ -239,56 +215,50 @@ async function searchAndCreateMealItems(foodItems) {
   return mealItems;
 }
 
-// Search external food APIs (USDA)
-async function searchExternalFood(foodName) {
+// Use the same search API that the frontend uses
+async function searchFoodUsingAPI(foodName) {
   try {
-    const axios = require('axios');
-    const usdaApiKey = process.env.USDA_API_KEY;
+    // Import the search functions from the food route
+    const { searchLocalDatabase, searchUSDADatabase, searchOpenFoodFacts, deduplicateResults } = require('../routes/food');
     
-    if (!usdaApiKey) {
-      console.log('⚠️ USDA API key not available');
-      return null;
+    let results = [];
+    
+    // Search local database
+    try {
+      const localResults = await searchLocalDatabase(foodName, 5);
+      results.push(...localResults);
+    } catch (error) {
+      console.log('Local search failed:', error.message);
     }
     
-    const response = await axios.get('https://api.nal.usda.gov/fdc/v1/foods/search', {
-      params: {
-        api_key: usdaApiKey,
-        query: foodName,
-        pageSize: 1,
-        sortBy: 'dataType',
-        sortOrder: 'asc'
-      },
-      timeout: 5000
-    });
-    
-    if (response.data.foods && response.data.foods.length > 0) {
-      const food = response.data.foods[0];
-      const nutrients = food.foodNutrients || [];
-      
-      // Extract basic nutrients
-      const kcal = nutrients.find(n => n.nutrientId === 1008)?.value || 0;
-      const protein = nutrients.find(n => n.nutrientId === 1003)?.value || 0;
-      const fat = nutrients.find(n => n.nutrientId === 1004)?.value || 0;
-      const carbs = nutrients.find(n => n.nutrientId === 1005)?.value || 0;
-      
-      return {
-        externalId: `usda_${food.fdcId}`,
-        name: food.description,
-        portionGramsDefault: 100, // Standard 100g portion
-        nutrients: {
-          kcal: kcal,
-          protein: protein,
-          fat: fat,
-          carbs: carbs
-        },
-        source: 'USDA'
-      };
+    // Search USDA database
+    try {
+      const usdaResults = await searchUSDADatabase(foodName, 5);
+      results.push(...usdaResults);
+    } catch (error) {
+      console.log('USDA search failed:', error.message);
     }
     
-    return null;
+    // Search Open Food Facts
+    try {
+      const offResults = await searchOpenFoodFacts(foodName, 5);
+      results.push(...offResults);
+    } catch (error) {
+      console.log('OpenFoodFacts search failed:', error.message);
+    }
+    
+    // Deduplicate and filter results
+    results = deduplicateResults(results);
+    results = results.filter(result => (result.relevanceScore || 0) >= 0.4);
+    
+    // Sort by relevance and return top result
+    return results
+      .sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0))
+      .slice(0, 1);
+      
   } catch (error) {
-    console.error('USDA API search error:', error.message);
-    return null;
+    console.error('API search error:', error.message);
+    return [];
   }
 }
 
