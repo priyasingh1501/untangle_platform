@@ -34,12 +34,10 @@ class EncryptionService {
       let encrypted = cipher.update(text, 'utf8', 'hex');
       encrypted += cipher.final('hex');
       
-      const tag = cipher.getAuthTag();
-      
       return {
         encrypted,
         iv: iv.toString('hex'),
-        tag: tag.toString('hex')
+        tag: '' // Not used in createCipher
       };
     } catch (error) {
       console.error('Encryption error:', error);
@@ -55,12 +53,11 @@ class EncryptionService {
       }
       
       const { encrypted, iv, tag } = encryptedData;
-      if (!encrypted || !iv || !tag) {
+      if (!encrypted) {
         return encryptedData;
       }
       
       const decipher = crypto.createDecipher(this.algorithm, this.keyBuffer);
-      decipher.setAuthTag(Buffer.from(tag, 'hex'));
       
       let decrypted = decipher.update(encrypted, 'hex', 'utf8');
       decrypted += decipher.final('utf8');
@@ -159,7 +156,7 @@ class EncryptionService {
   encryptFile(buffer) {
     try {
       const iv = crypto.randomBytes(this.ivLength);
-      const cipher = crypto.createCipher(this.algorithm, this.keyBuffer);
+      const cipher = crypto.createCipherGCM(this.algorithm, this.keyBuffer, iv);
       
       const encrypted = Buffer.concat([
         cipher.update(buffer),
@@ -184,7 +181,7 @@ class EncryptionService {
     try {
       const { encrypted, iv, tag } = encryptedData;
       
-      const decipher = crypto.createDecipher(this.algorithm, this.keyBuffer);
+      const decipher = crypto.createDecipherGCM(this.algorithm, this.keyBuffer, iv);
       decipher.setAuthTag(tag);
       
       const decrypted = Buffer.concat([

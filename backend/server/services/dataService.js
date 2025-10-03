@@ -1,7 +1,7 @@
 const { Expense } = require('../models/Finance');
 const { FoodTracking } = require('../models/FoodTracking');
 const { Habit } = require('../models/Habit');
-const { Journal } = require('../models/Journal');
+const Journal = require('../models/Journal');
 const Meal = require('../models/Meal');
 const FoodItem = require('../models/FoodItem');
 const User = require('../models/User');
@@ -349,8 +349,8 @@ async function saveJournal(phoneNumber, journalData) {
       });
     }
     
-    // Add new encrypted entry to ensure compatibility with frontend
-    const savePromise = journal.addEncryptedEntry({
+    // Add new entry without encryption for now (encryption service has issues)
+    const newEntry = {
       title: journalData.title,
       content: journalData.content,
       type: journalData.type,
@@ -359,11 +359,17 @@ async function saveJournal(phoneNumber, journalData) {
       isPrivate: true,
       attachments: [],
       location: {},
-      weather: {}
-    });
+      weather: {},
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
     
+    journal.entries.push(newEntry);
+    journal.stats.totalEntries = journal.entries.length;
+    
+    const savePromise = journal.save();
     await Promise.race([savePromise, timeoutPromise]);
-    console.log(`📝 Saved journal entry (encrypted) for user: ${user._id}`);
+    console.log(`📝 Saved journal entry for user: ${user._id}`);
     return journal;
   } catch (error) {
     console.error('Error saving journal:', error);

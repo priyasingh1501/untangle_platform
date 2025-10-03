@@ -109,7 +109,8 @@ const journalEntrySchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Encrypt sensitive data before saving
+// Encrypt sensitive data before saving (DISABLED - encryption service has issues)
+/*
 journalEntrySchema.pre('save', async function(next) {
   try {
     // Only encrypt if content has changed and is not already encrypted
@@ -130,6 +131,7 @@ journalEntrySchema.pre('save', async function(next) {
     next(error);
   }
 });
+*/
 
 // Decrypt sensitive data when retrieving
 journalEntrySchema.post('init', function() {
