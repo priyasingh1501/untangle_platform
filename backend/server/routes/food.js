@@ -542,10 +542,12 @@ async function searchUSDADatabase(query, limit) {
       
       return {
         id: `usda_${food.fdcId}`,
+        externalId: `usda_${food.fdcId}`,
         name: food.description,
         brand: food.brandOwner || null,
         source: 'usda',
         relevanceScore: score,
+        portionGramsDefault: 100, // Standard 100g portion for USDA foods
         nutriments100g: {
           kcal: food.foodNutrients?.find(n => n.nutrientName === 'Energy')?.value || null,
           protein: food.foodNutrients?.find(n => n.nutrientName === 'Protein')?.value || null,
@@ -717,11 +719,13 @@ async function searchOpenFoodFacts(query, limit) {
       
       return {
         id: `off_${product.code}`,
+        externalId: `off_${product.code}`,
         barcode: product.code,
         name: product.product_name || product.brands || 'Unknown',
         brand: product.brands || null,
         source: 'off',
         relevanceScore: score,
+        portionGramsDefault: 100, // Standard 100g portion for OpenFoodFacts
         nutriments100g: {
           kcal: product.nutriments?.['energy-kcal_100g'] || null,
           protein: product.nutriments?.proteins_100g || null,
