@@ -177,13 +177,13 @@ async function searchAndCreateMealItems(foodItems) {
   
   for (const foodName of foodItems) {
     try {
-      // Search for the food item in the database
+      // First try local database
       const foodItem = await FoodItem.findOne({
         nameFold: { $regex: foodName.toLowerCase(), $options: 'i' }
       }).limit(1);
       
       if (foodItem) {
-        // Estimate portion size (default 100g for most items)
+        // Found in local database
         const defaultGrams = foodItem.portionGramsDefault || 100;
         
         mealItems.push({
@@ -192,16 +192,38 @@ async function searchAndCreateMealItems(foodItems) {
           grams: defaultGrams
         });
         
-        console.log(`✅ Found food item: ${foodItem.name} (${defaultGrams}g)`);
+        console.log(`✅ Found food item in local DB: ${foodItem.name} (${defaultGrams}g)`);
       } else {
-        console.log(`❌ Food item not found: ${foodName}`);
-        // Create a basic food item entry for unknown foods
-        mealItems.push({
-          foodId: `unknown_${foodName}`,
-          customName: foodName,
-          grams: 100 // Default 100g portion
-        });
-        console.log(`📝 Created basic entry for: ${foodName} (100g)`);
+        // Try external search (USDA API)
+        console.log(`🔍 Searching external APIs for: ${foodName}`);
+        try {
+          const externalFood = await searchExternalFood(foodName);
+          if (externalFood) {
+            mealItems.push({
+              foodId: externalFood.externalId || `external_${foodName}`,
+              customName: externalFood.name,
+              grams: externalFood.portionGramsDefault || 100
+            });
+            console.log(`✅ Found food item in external API: ${externalFood.name} (${externalFood.portionGramsDefault || 100}g)`);
+          } else {
+            // Create basic entry for unknown foods
+            mealItems.push({
+              foodId: `unknown_${foodName}`,
+              customName: foodName,
+              grams: 100
+            });
+            console.log(`📝 Created basic entry for: ${foodName} (100g)`);
+          }
+        } catch (externalError) {
+          console.error(`External search failed for ${foodName}:`, externalError.message);
+          // Create basic entry as fallback
+          mealItems.push({
+            foodId: `unknown_${foodName}`,
+            customName: foodName,
+            grams: 100
+          });
+          console.log(`📝 Created basic entry for: ${foodName} (100g)`);
+        }
       }
     } catch (error) {
       console.error(`Error searching for food item ${foodName}:`, error);
@@ -215,6 +237,59 @@ async function searchAndCreateMealItems(foodItems) {
   }
   
   return mealItems;
+}
+
+// Search external food APIs (USDA)
+async function searchExternalFood(foodName) {
+  try {
+    const axios = require('axios');
+    const usdaApiKey = process.env.USDA_API_KEY;
+    
+    if (!usdaApiKey) {
+      console.log('⚠️ USDA API key not available');
+      return null;
+    }
+    
+    const response = await axios.get('https://api.nal.usda.gov/fdc/v1/foods/search', {
+      params: {
+        api_key: usdaApiKey,
+        query: foodName,
+        pageSize: 1,
+        sortBy: 'dataType',
+        sortOrder: 'asc'
+      },
+      timeout: 5000
+    });
+    
+    if (response.data.foods && response.data.foods.length > 0) {
+      const food = response.data.foods[0];
+      const nutrients = food.foodNutrients || [];
+      
+      // Extract basic nutrients
+      const kcal = nutrients.find(n => n.nutrientId === 1008)?.value || 0;
+      const protein = nutrients.find(n => n.nutrientId === 1003)?.value || 0;
+      const fat = nutrients.find(n => n.nutrientId === 1004)?.value || 0;
+      const carbs = nutrients.find(n => n.nutrientId === 1005)?.value || 0;
+      
+      return {
+        externalId: `usda_${food.fdcId}`,
+        name: food.description,
+        portionGramsDefault: 100, // Standard 100g portion
+        nutrients: {
+          kcal: kcal,
+          protein: protein,
+          fat: fat,
+          carbs: carbs
+        },
+        source: 'USDA'
+      };
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('USDA API search error:', error.message);
+    return null;
+  }
 }
 
 // Save habit data
