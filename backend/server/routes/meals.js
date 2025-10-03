@@ -664,6 +664,9 @@ router.get('/stats/overview', auth, async (req, res) => {
 });
 
 module.exports = router;
+
+// Export helper functions for use by other services
+module.exports.fetchExternalFoodData = fetchExternalFoodData;
  
 /**
  * AI analysis for a specific effect over a date range
