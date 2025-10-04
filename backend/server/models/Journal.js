@@ -6,12 +6,18 @@ const encryptionService = new EncryptionService();
 const journalEntrySchema = new mongoose.Schema({
   title: {
     type: String,
-    required: true,
+    required: function() {
+      // Title is required only if encryptedTitle doesn't exist
+      return !this.encryptedTitle;
+    },
     trim: true
   },
   content: {
     type: String,
-    required: true
+    required: function() {
+      // Content is required only if encryptedContent doesn't exist
+      return !this.encryptedContent;
+    }
   },
   // Encrypted fields
   encryptedTitle: {
