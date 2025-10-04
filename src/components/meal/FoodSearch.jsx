@@ -109,15 +109,15 @@ const FoodSearch = ({ results, isSearching, hasSearched, onAddFood, searchQuery 
 
     return (
       <div className="flex flex-wrap gap-1 mt-2">
-        <span className="text-xs text-[#FFD200] font-medium">Click to add:</span>
+        <span className="text-xs text-accent-primary font-medium font-jakarta">Click to add:</span>
         {standardUnits.map((unit, unitIndex) => (
           <button
             key={`unit-${food._id || food.id || food.barcode || unitIndex}-${unitIndex}`}
             onClick={() => onAddFood(food, unit)}
-            className={`inline-flex items-center px-3 py-1 text-xs rounded-full border transition-all duration-200 hover:scale-105 cursor-pointer ${
+            className={`inline-flex items-center px-3 py-1 text-xs rounded-full border transition-all duration-200 hover:scale-105 cursor-pointer font-jakarta ${
               unit.isDefault
-                ? 'bg-[#FFD200]/20 text-[#FFD200] border-[#FFD200]/50 hover:bg-[#FFD200]/30 hover:shadow-lg'
-                : 'bg-[#2A313A] text-[#C9D1D9] border-[#2A313A] hover:bg-[#3A414A] hover:border-[#4A515A] hover:shadow-lg'
+                ? 'bg-accent-primary/20 text-accent-primary border-accent-primary/50 hover:bg-accent-primary/30 hover:shadow-lg'
+                : 'bg-background-tertiary text-text-secondary border-border-primary hover:bg-background-secondary hover:border-border-secondary hover:shadow-lg'
             }`}
             title={`Click to add 1 ${unit.description} (${unit.grams}g)`}
           >
@@ -159,25 +159,25 @@ const FoodSearch = ({ results, isSearching, hasSearched, onAddFood, searchQuery 
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ delay: index * 0.05 }}
-            className="bg-[#0A0C0F] border border-[#2A313A] rounded-lg p-4 hover:border-[#FFD200] transition-colors duration-200"
+            className="bg-background-card border border-border-primary rounded-xl p-4 hover:border-accent-primary transition-colors duration-200 backdrop-blur-[32px] backdrop-saturate-[180%] shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_8px_32px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.08)]"
           >
             <div className="flex items-center justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-3">
-                  <h4 className="font-semibold text-[#E8EEF2]">
+                  <h4 className="font-semibold text-text-primary font-jakarta">
                     {food.name}
                   </h4>
                   {/* Source indicator */}
-                  <span className={`px-2 py-1 text-xs rounded-full border ${
+                  <span className={`px-2 py-1 text-xs rounded-full border font-jakarta ${
                     food.source === 'IFCT' 
-                      ? 'bg-[#1E49C9]/30 text-[#1E49C9] border-[#1E49C9]/50'
+                      ? 'bg-accent-primary/30 text-accent-primary border-accent-primary/50'
                       : food.source === 'USDA'
-                      ? 'bg-blue-900/30 text-blue-300 border-blue-700/50'
+                      ? 'bg-accent-primary/20 text-accent-primary border-accent-primary/40'
                       : food.source === 'OpenFoodFacts'
-                      ? 'bg-purple-900/30 text-purple-300 border-purple-700/50'
+                      ? 'bg-accent-primary/20 text-accent-primary border-accent-primary/40'
                       : food.source === 'AI_ANALYZED'
-                      ? 'bg-gradient-to-r from-[#1E49C9]/30 to-[#3EA6FF]/30 text-[#1E49C9] border-[#1E49C9]/50'
-                      : 'bg-gray-900/30 text-gray-300 border-gray-700/50'
+                      ? 'bg-gradient-to-r from-accent-primary/30 to-accent-primary/20 text-accent-primary border-accent-primary/50'
+                      : 'bg-background-tertiary text-text-secondary border-border-primary'
                   }`}>
                     {food.source === 'AI_ANALYZED' ? 'AI Analyzed' : food.source}
                   </span>

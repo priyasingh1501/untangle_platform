@@ -123,31 +123,31 @@ const MealItems = ({ items, onRemoveFood, onUpdatePortion }) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="bg-[#0A0C0F] border border-[#2A313A] rounded-lg p-4"
+            className="bg-background-card border border-border-primary rounded-xl p-4 backdrop-blur-[32px] backdrop-saturate-[180%] shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_8px_32px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.08)]"
           >
             <div className="flex items-center justify-between">
               <div className="flex-1">
-                <h4 className="font-semibold text-[#E8EEF2] mb-2">
+                <h4 className="font-semibold text-text-primary font-jakarta mb-2">
                   {item.customName || item.food?.name || 'Unknown Food'}
                 </h4>
                 
                 {/* Current portion display */}
-                <div className="text-sm text-[#C9D1D9] mb-2">
+                <div className="text-sm text-text-secondary font-jakarta mb-2">
                   Current: {getDisplayPortion(item)}
                 </div>
                 
                 {/* Selected unit indicator */}
                 {item.selectedUnit && (
                   <div className="mb-2">
-                    <span className="inline-flex items-center px-2 py-1 bg-[#FFD200]/20 text-[#FFD200] text-xs rounded-full border border-[#FFD200]/50">
+                    <span className="inline-flex items-center px-2 py-1 bg-accent-primary/20 text-accent-primary text-xs rounded-full border border-accent-primary/50 font-jakarta">
                       {item.selectedUnit.unit} selected
                     </span>
                   </div>
                 )}
                 
                 {/* Portion info - showing Indian portion units */}
-                <div className="text-sm text-[#C9D1D9] mt-2">
-                  <span className="text-[#FFD200] font-medium">Portion:</span> {getDisplayPortion(item)}
+                <div className="text-sm text-text-secondary font-jakarta mt-2">
+                  <span className="text-accent-primary font-medium">Portion:</span> {getDisplayPortion(item)}
                 </div>
               </div>
               

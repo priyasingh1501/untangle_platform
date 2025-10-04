@@ -1,5 +1,5 @@
 const { Expense } = require('../models/Finance');
-const { FoodTracking } = require('../models/FoodTracking');
+const FoodTracking = require('../models/FoodTracking');
 const { Habit } = require('../models/Habit');
 const Journal = require('../models/Journal');
 const Meal = require('../models/Meal');
@@ -116,50 +116,131 @@ async function saveFood(phoneNumber, foodData) {
       if (mealItems.length === 0) {
         return await saveBasicFood();
       }
+      
+      // Calculate proper nutritional values and effects for WhatsApp meals
+      const { aggregateNutrients } = require('../lib/meal/aggregate');
+      const { inferBadges } = require('../lib/meal/badges');
+      const { mindfulMealScore } = require('../lib/meal/score');
+      const { computeMealEffects } = require('../lib/meal/effects');
+      
+      // Fetch food items for nutritional calculation
+      // Handle both MongoDB ObjectIds and external IDs
+      const validObjectIds = mealItems.filter(item => 
+        item.foodId && item.foodId.match(/^[0-9a-fA-F]{24}$/)
+      ).map(item => item.foodId);
+      
+      const foods = validObjectIds.length > 0 ? 
+        await FoodItem.find({ _id: { $in: validObjectIds } }) : [];
+      
+      // Create items with food data for calculation
+      const itemsWithFood = mealItems.map(item => {
+        let food = null;
+        
+        // Try to find by MongoDB ObjectId first
+        if (item.foodId && item.foodId.match(/^[0-9a-fA-F]{24}$/)) {
+          food = foods.find(f => f._id.toString() === item.foodId);
+        }
+        
+        // If not found, try to find by externalId
+        if (!food && item.foodId) {
+          food = foods.find(f => f.externalId === item.foodId);
+        }
+        
+        // If still not found, create a basic food object with nutritional data
+        if (!food) {
+          // Create a basic food object with estimated nutritional data
+          food = {
+            _id: item.foodId,
+            name: item.customName,
+            nutrients: {
+              kcal: 200, // Default estimate
+              protein: 10,
+              fat: 5,
+              carbs: 30,
+              fiber: 2,
+              sugar: 5,
+              vitaminC: 0,
+              zinc: 0,
+              selenium: 0,
+              iron: 0,
+              omega3: 0
+            },
+            tags: [],
+            gi: null,
+            fodmap: 'Unknown',
+            novaClass: 1
+          };
+        }
+        
+        return {
+          food: food,
+          grams: item.grams
+        };
+      });
+      
+      // Calculate nutritional totals
+      const totals = aggregateNutrients(itemsWithFood);
+      
+      // Calculate badges
+      const badges = inferBadges(totals, foods);
+      
+      // Calculate mindful meal score
+      const context = {
+        postWorkout: false,
+        plantDiversity: mealItems.length,
+        fermented: false,
+        omega3Tag: false,
+        addedSugar: 0
+      };
+      const scoreResult = mindfulMealScore(totals, badges, context);
+      
+      // Calculate meal effects
+      const effects = computeMealEffects(totals, badges, context);
+      
+      // Normalize effects structure to match expected format
+      const normalizedEffects = {};
+      Object.entries(effects).forEach(([key, effect]) => {
+        // Map effect levels to valid enum values
+        const mapToValidLabel = (level) => {
+          if (!level) return 'Medium';
+          const levelStr = level.toString().toLowerCase();
+          if (levelStr.includes('very high') || levelStr.includes('excellent')) return 'Very High';
+          if (levelStr.includes('high') || levelStr.includes('good') || levelStr.includes('energizing') || levelStr.includes('gut-friendly')) return 'High';
+          if (levelStr.includes('medium') || levelStr.includes('neutral')) return 'Medium';
+          if (levelStr.includes('low') || levelStr.includes('poor')) return 'Low';
+          if (levelStr.includes('very low') || levelStr.includes('sluggish')) return 'Very Low';
+          return 'Medium';
+        };
+        
+        normalizedEffects[key] = {
+          score: effect.score || 0,
+          why: effect.reasons || effect.why || [],
+          level: effect.level || effect.label || 'Medium',
+          label: mapToValidLabel(effect.level || effect.label)
+        };
+      });
+      
       const meal = new Meal({
         userId: user._id,
         ts: new Date(),
         items: mealItems,
         notes: foodData.description,
-        context: {
-          postWorkout: false,
-          plantDiversity: mealItems.length,
-          fermented: false,
-          omega3Tag: false,
-          addedSugar: 0
-        },
-        // Skip AI analysis for WhatsApp - just basic computed data
+        context: context,
         computed: {
-          totals: {
-            kcal: 0,
-            protein: 0,
-            carbs: 0,
-            fat: 0,
-            fiber: 0,
-            sugar: 0,
-            vitaminC: 0,
-            zinc: 0,
-            selenium: 0,
-            iron: 0,
-            omega3: 0
-          },
-          badges: {
-            protein: false,
-            veg: false,
-            gi: 0,
-            fodmap: 'Unknown',
-            nova: 0
-          },
-          mindfulMealScore: 3,
-          rationale: ['Basic meal logged via WhatsApp'],
-          tip: 'Consider adding more details for better analysis',
-          aiInsights: null,
-          effects: {}
+          totals: totals,
+          badges: badges,
+          mindfulMealScore: scoreResult.score,
+          rationale: scoreResult.rationale,
+          tip: scoreResult.tip,
+          aiInsights: null, // Skip AI analysis for WhatsApp
+          effects: normalizedEffects
         }
       });
       const savePromise = meal.save();
       const savedMeal = await Promise.race([savePromise, timeoutPromise]);
-      console.log(`🍽️ Saved meal with ${mealItems.length} items: ${savedMeal._id}`);
+      console.log(`🍽️ Saved meal with ${mealItems.length} items and calculated nutrition: ${savedMeal._id}`);
+      console.log(`📊 Nutritional totals: ${JSON.stringify(totals)}`);
+      console.log(`🎯 Meal effects: ${Object.keys(normalizedEffects).length} effects calculated`);
       return savedMeal;
     } catch (mealError) {
       console.error('Meal creation failed, falling back to basic tracking:', mealError);
