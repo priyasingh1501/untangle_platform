@@ -536,7 +536,26 @@ router.get('/trends', auth, async (req, res) => {
       analysis: entry.alfredAnalysis
     }));
     
-    const trendAnalysis = await analysisService.generateTrendAnalysis(analyses);
+    console.log(`Attempting trend analysis for ${analyses.length} entries`);
+    let trendAnalysis;
+    
+    try {
+      trendAnalysis = await analysisService.generateTrendAnalysis(analyses);
+    } catch (analysisError) {
+      console.error('Trend analysis generation failed:', analysisError.message);
+      // Return empty trend analysis if generation fails
+      trendAnalysis = {
+        emotionTrend: 'stable',
+        commonTopics: [],
+        evolvingBeliefs: [],
+        summary: 'Trend analysis temporarily unavailable. Your insights are still valuable!',
+        insights: [],
+        sentimentTrend: 'stable',
+        emotionalRange: { min: 1, max: 10 },
+        growthAreas: [],
+        strengths: []
+      };
+    }
     
     // Store the generated trends
     const newTrends = new JournalTrends({
