@@ -154,9 +154,9 @@ class EncryptionService {
         console.log('EncryptionService: createDecipheriv decryption failed:', decipherivError.message);
       }
       
-      // If all methods fail, return the original data
-      console.log('EncryptionService: All decryption methods failed, returning original data');
-      return encryptedData;
+      // If all methods fail, return error message instead of encrypted data
+      console.log('EncryptionService: All decryption methods failed, returning error message');
+      return '[Error: Unable to decrypt data]';
       
     } catch (error) {
       console.error('EncryptionService: Decryption error:', {
@@ -164,8 +164,8 @@ class EncryptionService {
         stack: error.stack,
         encryptedData: encryptedData
       });
-      // Return original data instead of throwing error
-      return encryptedData;
+      // Return error message instead of encrypted data
+      return '[Error: Unable to decrypt data]';
     }
   }
 
