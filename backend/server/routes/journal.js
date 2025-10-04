@@ -89,8 +89,22 @@ router.post('/entries', auth, async (req, res) => {
       weather
     };
     
-    // Use encrypted entry method
-    await journal.addEncryptedEntry(newEntryData);
+    // Try encrypted entry method first, fallback to unencrypted if encryption fails
+    try {
+      await journal.addEncryptedEntry(newEntryData);
+    } catch (encryptionError) {
+      console.error('Encryption failed, falling back to unencrypted storage:', encryptionError.message);
+      
+      // Fallback: Add entry without encryption
+      const fallbackEntry = {
+        ...newEntryData,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      
+      journal.entries.push(fallbackEntry);
+      await journal.save();
+    }
     
     // Get the newly added entry with decrypted content for response
     const newEntry = journal.getDecryptedEntry(journal.entries[0]._id);

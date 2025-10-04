@@ -9,14 +9,17 @@ class EncryptionService {
     this.tagLength = securityConfig.encryption.tagLength;
     
     // Get encryption key from environment
-    this.encryptionKey = process.env.ENCRYPTION_KEY || 'fallback-encryption-key-for-development-only-32-chars';
-    if (!this.encryptionKey) {
-      throw new Error('ENCRYPTION_KEY environment variable is required');
-    }
+    this.encryptionKey = process.env.ENCRYPTION_KEY;
     
-    // Warn if using fallback key
-    if (this.encryptionKey === 'fallback-encryption-key-for-development-only-32-chars') {
-      console.warn('⚠️ Using fallback encryption key. Set ENCRYPTION_KEY environment variable for production.');
+    // Generate a proper fallback key for development if none provided
+    if (!this.encryptionKey) {
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('ENCRYPTION_KEY environment variable is required for production');
+      }
+      // Generate a proper hex key for development
+      const crypto = require('crypto');
+      this.encryptionKey = crypto.randomBytes(16).toString('hex');
+      console.warn('⚠️ Generated development encryption key. Set ENCRYPTION_KEY environment variable for production.');
     }
     
     // Validate encryption key format
