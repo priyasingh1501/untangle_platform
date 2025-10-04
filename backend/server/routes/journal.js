@@ -418,7 +418,6 @@ router.post('/entries/:entryId/analyze', auth, async (req, res) => {
     await journal.save();
     
     // Get decrypted entry for response
-    const entry = journal.entries[entryIndex];
     let decryptedEntry;
     
     try {
