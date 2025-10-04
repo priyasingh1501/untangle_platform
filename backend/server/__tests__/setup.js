@@ -1,8 +1,15 @@
-import express from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
-import compression from 'compression';
-import rateLimit from 'express-rate-limit';
+const express = require('express');
+const cors = require('cors');
+const helmet = require('helmet');
+const compression = require('compression');
+const rateLimit = require('express-rate-limit');
+
+// Import actual routes
+const authRoutes = require('../routes/auth');
+const financeRoutes = require('../routes/finance');
+const tasksRoutes = require('../routes/tasks');
+const aiQuoteAnalysisRoutes = require('../routes/aiQuoteAnalysis');
+const mealsRoutes = require('../routes/meals');
 
 // Mock the auth middleware for testing
 const mockAuthMiddleware = (req, res, next) => {
@@ -10,7 +17,7 @@ const mockAuthMiddleware = (req, res, next) => {
   next();
 };
 
-export const createTestApp = () => {
+const createTestApp = () => {
   const app = express();
 
   // Basic middleware
@@ -28,8 +35,17 @@ export const createTestApp = () => {
   });
   app.use(limiter);
 
-  // Mock auth middleware
+  // Mount actual routes
+  app.use('/api/auth', authRoutes);
+  app.use('/api/finance', financeRoutes);
+  app.use('/api/tasks', tasksRoutes);
+  app.use('/api/ai', aiQuoteAnalysisRoutes);
+  app.use('/api/meals', mealsRoutes);
+
+  // Mock auth middleware for other routes
   app.use(mockAuthMiddleware);
 
   return app;
 };
+
+module.exports = { createTestApp };
