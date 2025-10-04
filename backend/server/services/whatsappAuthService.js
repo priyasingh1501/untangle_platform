@@ -1,4 +1,7 @@
 const User = require('../models/User');
+// DEPLOYMENT IDENTIFIER: DEPLOYMENT_1759591006659
+// This unique identifier proves our changes are deployed
+
 // DEPLOYMENT TIMESTAMP: 2025-10-04T15:11:05.874Z
 
 // Add explicit database connection check
@@ -77,7 +80,7 @@ async function loginWithCredentials(phoneNumber, email, password) {
     if (!user) {
       return {
         success: false,
-        message: '❌ No account found with this email. Please register on the web platform first.'
+        message: '❌ No account found with this email. Please register on the web platform first. [DEPLOYMENT_1759591006659]'
       };
     }
 
@@ -85,7 +88,7 @@ async function loginWithCredentials(phoneNumber, email, password) {
     if (user.isAccountLocked()) {
       return {
         success: false,
-        message: '❌ Account is temporarily locked due to multiple failed login attempts. Please try again later.'
+        message: '❌ Account is temporarily locked due to multiple failed login attempts. Please try again later. [DEPLOYMENT_1759591006659]'
       };
     }
 
@@ -99,7 +102,7 @@ async function loginWithCredentials(phoneNumber, email, password) {
       
       return {
         success: false,
-        message: '❌ Invalid password. Please check your credentials.'
+        message: '❌ Invalid password. Please check your credentials. [DEPLOYMENT_1759591006659]'
       };
     }
 
@@ -115,7 +118,7 @@ async function loginWithCredentials(phoneNumber, email, password) {
     if (user.twoFactorEnabled) {
       return {
         success: false,
-        message: '❌ Two-factor authentication is enabled for your account. Please use the web platform to log in with 2FA, or disable 2FA in your account settings.'
+        message: '❌ Two-factor authentication is enabled for your account. Please use the web platform to log in with 2FA, or disable 2FA in your account settings. [DEPLOYMENT_1759591006659]'
       };
     }
 
