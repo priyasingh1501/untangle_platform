@@ -536,57 +536,21 @@ const GoalAlignedDay = () => {
   // Get today's hours logged for a goal (tasks + completed habits)
   const getTodayHoursForGoal = (goalId) => {
     const todayTasks = getTodayTasksForGoal(goalId);
-    const taskHours = todayTasks.reduce((total, task) => {
+    // Note: getTodayTasksForGoal already includes completed habits as pseudo tasks,
+    // so we only need to calculate hours from todayTasks (which includes both tasks and habits)
+    const totalHours = todayTasks.reduce((total, task) => {
       const duration = task.estimatedDuration || 0;
       return total + duration / 60;
     }, 0);
-
-    // Add completed habits for this goal
-    const goalHabits = getHabitsForGoal(goalId);
-    const habitHours = goalHabits.reduce((total, habit) => {
-      if (isHabitCompletedToday(habit)) {
-        // Get the actual duration from today's check-in
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
-        const todayCheckin = habit.checkins?.find(checkin => {
-          const checkinDate = new Date(checkin.date);
-          checkinDate.setHours(0, 0, 0, 0);
-          return checkinDate.getTime() === today.getTime() && checkin.completed;
-        });
-        
-        const duration = todayCheckin?.duration || habit.valueMin || 0;
-        return total + duration / 60; // Convert minutes to hours
-      }
-      return total;
-    }, 0);
-
-    const totalHours = taskHours + habitHours;
     
     // Debug logging
     console.log(`🔍 Goal ${goalId} hours calculation:`, {
       goalId,
-      taskHours,
-      habitHours,
       totalHours,
-      goalHabits: goalHabits.map(h => {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const todayCheckin = h.checkins?.find(checkin => {
-          const checkinDate = new Date(checkin.date);
-          checkinDate.setHours(0, 0, 0, 0);
-          return checkinDate.getTime() === today.getTime() && checkin.completed;
-        });
-        return {
-          habit: h.habit,
-          valueMin: h.valueMin,
-          isCompleted: isHabitCompletedToday(h),
-          actualDuration: todayCheckin?.duration || h.valueMin,
-          checkins: h.checkins
-        };
-      }),
       todayTasks: todayTasks.map(t => ({
         title: t.title,
+        displayName: t.displayName,
+        type: t.type,
         estimatedDuration: t.estimatedDuration,
         status: t.status
       }))
