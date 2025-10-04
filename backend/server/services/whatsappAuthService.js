@@ -1,4 +1,7 @@
 const User = require('../models/User');
+// FORCE REBUILD TIMESTAMP: 2025-10-04T15:42:42.742Z
+// This timestamp forces Railway to rebuild and deploy latest changes
+
 // DEPLOYMENT IDENTIFIER: DEPLOYMENT_1759591006659
 // This unique identifier proves our changes are deployed
 
