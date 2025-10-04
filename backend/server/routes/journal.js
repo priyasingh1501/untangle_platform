@@ -281,7 +281,25 @@ router.get('/entries', auth, async (req, res) => {
     const paginatedEntries = filteredEntries.slice(startIndex, endIndex);
     
     // Decrypt entries for response
-    const decryptedEntries = paginatedEntries.map(entry => entry.getDecryptedEntry());
+    const decryptedEntries = paginatedEntries.map(entry => {
+      // For unencrypted entries, return as-is
+      if (!entry.encryptedTitle && !entry.encryptedContent) {
+        return entry;
+      }
+      // For encrypted entries, try to decrypt
+      try {
+        return entry.getDecryptedEntry();
+      } catch (error) {
+        console.error('Error decrypting entry:', error.message);
+        // Return entry with error message if decryption fails
+        return {
+          ...entry.toObject(),
+          title: '[Error: Unable to decrypt title]',
+          content: '[Error: Unable to decrypt content]',
+          _decryptionError: true
+        };
+      }
+    });
     
     res.json({
       entries: decryptedEntries,
@@ -399,10 +417,30 @@ router.post('/entries/:entryId/analyze', auth, async (req, res) => {
     journal.entries[entryIndex].alfredAnalysis = analysis;
     await journal.save();
     
+    // Get decrypted entry for response
+    const entry = journal.entries[entryIndex];
+    let decryptedEntry;
+    
+    try {
+      if (!entry.encryptedTitle && !entry.encryptedContent) {
+        decryptedEntry = entry;
+      } else {
+        decryptedEntry = entry.getDecryptedEntry();
+      }
+    } catch (error) {
+      console.error('Error decrypting entry for analysis response:', error.message);
+      decryptedEntry = {
+        ...entry.toObject(),
+        title: '[Error: Unable to decrypt title]',
+        content: '[Error: Unable to decrypt content]',
+        _decryptionError: true
+      };
+    }
+    
     res.json({
       message: 'Entry analyzed successfully',
       analysis,
-      entry: journal.entries[entryIndex]
+      entry: decryptedEntry
     });
   } catch (error) {
     console.error('Error analyzing journal entry:', error);
