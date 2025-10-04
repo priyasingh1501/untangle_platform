@@ -152,6 +152,12 @@ async function loginWithCredentials(phoneNumber, email, password) {
     user.lastLogin = new Date();
     
     // Link phone number to user account
+    // First, remove phone number from any other user to avoid duplicate key error
+    await User.updateMany(
+      { phoneNumber, _id: { $ne: user._id } },
+      { $unset: { phoneNumber: 1 } }
+    );
+    
     user.phoneNumber = phoneNumber;
     user.isTemporary = false; // Mark as non-temporary
     user.source = 'whatsapp_auth';
