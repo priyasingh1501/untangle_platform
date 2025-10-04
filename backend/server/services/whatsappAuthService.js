@@ -56,9 +56,22 @@ async function loginWithCredentials(phoneNumber, email, password) {
       };
     }
 
-    // Verify password
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    // Check if account is locked (same as web authentication)
+    if (user.isAccountLocked()) {
+      return {
+        success: false,
+        message: '❌ Account is temporarily locked due to multiple failed login attempts. Please try again later.'
+      };
+    }
+
+    // Verify password using the same method as web authentication
+    const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
+      // Increment login attempts and add failed attempt (same as web authentication)
+      user.incrementLoginAttempts();
+      user.addFailedLoginAttempt('whatsapp', 'WhatsApp Bot');
+      await user.save();
+      
       return {
         success: false,
         message: '❌ Invalid password. Please check your credentials.'
@@ -73,6 +86,18 @@ async function loginWithCredentials(phoneNumber, email, password) {
       };
     }
 
+    // Check if 2FA is required (same as web authentication)
+    if (user.twoFactorEnabled) {
+      return {
+        success: false,
+        message: '❌ Two-factor authentication is enabled for your account. Please use the web platform to log in with 2FA, or disable 2FA in your account settings.'
+      };
+    }
+
+    // Reset login attempts on successful login (same as web authentication)
+    user.resetLoginAttempts();
+    user.lastLogin = new Date();
+    
     // Link phone number to user account
     user.phoneNumber = phoneNumber;
     user.isTemporary = false; // Mark as non-temporary
