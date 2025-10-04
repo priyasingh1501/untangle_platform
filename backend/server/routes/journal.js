@@ -450,11 +450,22 @@ router.post('/entries/:entryId/analyze', auth, async (req, res) => {
 // Get trend analysis for user's journal
 router.get('/trends', auth, async (req, res) => {
   try {
+    console.log('Trend analysis request received');
     const { limit = 10, timeRange = 'month' } = req.query;
     const userId = req.user.userId || req.user.id || req.user._id;
+    console.log(`Trend analysis for user: ${userId}, limit: ${limit}, timeRange: ${timeRange}`);
     
     // Try to get cached trends first
-    const cachedTrends = await JournalTrends.getOrCreateTrends(userId, timeRange, parseInt(limit));
+    let cachedTrends;
+    try {
+      console.log('Attempting to get cached trends...');
+      cachedTrends = await JournalTrends.getOrCreateTrends(userId, timeRange, parseInt(limit));
+      console.log('Cached trends retrieved successfully');
+    } catch (cacheError) {
+      console.error('Error getting cached trends:', cacheError.message);
+      // Continue without cache
+      cachedTrends = null;
+    }
     
     if (cachedTrends && !cachedTrends.needsRefresh()) {
       return res.json({
@@ -468,6 +479,7 @@ router.get('/trends', auth, async (req, res) => {
     }
     
     // If no cache or needs refresh, generate new trends
+    console.log('Fetching journal entries...');
     const journal = await Journal.findOne({ userId });
     if (!journal) {
       console.log('Journal not found in database, returning empty trends');
