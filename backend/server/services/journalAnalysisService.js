@@ -2,13 +2,34 @@ const OpenAI = require('openai');
 
 class JournalAnalysisService {
   constructor() {
-    this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
+    // Check if OpenAI API key is available
+    if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === 'SAMPLE_KEY' || process.env.OPENAI_API_KEY === 'your_openai_api_key_here') {
+      console.warn('⚠️ OpenAI API key not configured. Journal analysis will use fallback mode.');
+      this.openai = null;
+      this.apiKeyAvailable = false;
+    } else {
+      try {
+        this.openai = new OpenAI({
+          apiKey: process.env.OPENAI_API_KEY,
+        });
+        this.apiKeyAvailable = true;
+        console.log('✅ OpenAI API key configured successfully for journal analysis');
+      } catch (error) {
+        console.error('❌ Failed to initialize OpenAI:', error.message);
+        this.openai = null;
+        this.apiKeyAvailable = false;
+      }
+    }
   }
 
   async analyzeJournalEntry(content, title = '') {
     try {
+      // Check if OpenAI is available
+      if (!this.apiKeyAvailable || !this.openai) {
+        console.log('📝 Using fallback analysis (OpenAI not available)');
+        return this.createFallbackAnalysis(content);
+      }
+
       const prompt = this.buildAnalysisPrompt(content, title);
       
       const response = await this.openai.chat.completions.create({
@@ -154,35 +175,92 @@ Focus on understanding the writer's emotional state, concerns, and underlying va
   }
 
   createFallbackAnalysis(content) {
-    // Simple fallback analysis when AI analysis fails
+    // Enhanced fallback analysis when AI analysis fails
     const wordCount = content.split(' ').length;
-    const hasPositiveWords = /good|great|happy|love|joy|amazing|wonderful|excellent|fantastic/i.test(content);
-    const hasNegativeWords = /bad|terrible|awful|hate|sad|angry|frustrated|disappointed|worried|anxious/i.test(content);
+    const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 0);
+    
+    // Enhanced emotion detection
+    const positiveWords = /good|great|happy|love|joy|amazing|wonderful|excellent|fantastic|grateful|blessed|excited|proud|accomplished|successful|peaceful|calm|content|satisfied|hopeful|optimistic/i;
+    const negativeWords = /bad|terrible|awful|hate|sad|angry|frustrated|disappointed|worried|anxious|stressed|overwhelmed|lonely|hurt|upset|confused|lost|tired|exhausted|depressed/i;
+    const neutralWords = /today|yesterday|tomorrow|work|home|family|friend|time|day|week|month|year|think|feel|know|want|need|try|help|learn|understand/i;
+    
+    const positiveMatches = (content.match(positiveWords) || []).length;
+    const negativeMatches = (content.match(negativeWords) || []).length;
+    const neutralMatches = (content.match(neutralWords) || []).length;
     
     let primaryEmotion = 'contentment';
+    let secondaryEmotion = null;
     let intensity = 5;
+    let confidence = 0.3;
     
-    if (hasPositiveWords && !hasNegativeWords) {
+    if (positiveMatches > negativeMatches && positiveMatches > 0) {
       primaryEmotion = 'joy';
-      intensity = 7;
-    } else if (hasNegativeWords && !hasPositiveWords) {
+      intensity = Math.min(8, 5 + positiveMatches);
+      confidence = 0.4;
+    } else if (negativeMatches > positiveMatches && negativeMatches > 0) {
       primaryEmotion = 'sadness';
-      intensity = 6;
+      intensity = Math.min(8, 5 + negativeMatches);
+      confidence = 0.4;
+    } else if (neutralMatches > 0) {
+      primaryEmotion = 'calm';
+      intensity = 4;
+      confidence = 0.3;
     }
-
+    
+    // Extract potential topics from content
+    const topics = [];
+    const topicKeywords = {
+      'work': /work|job|career|office|meeting|project|task|deadline/i,
+      'relationships': /friend|family|relationship|love|partner|spouse|parent|child|sibling/i,
+      'health': /health|exercise|workout|doctor|medicine|sick|wellness|fitness|diet/i,
+      'travel': /travel|trip|vacation|journey|flight|hotel|destination|adventure/i,
+      'learning': /learn|study|education|school|university|course|book|reading|knowledge/i,
+      'hobbies': /hobby|interest|music|art|sport|game|movie|show|entertainment/i,
+      'goals': /goal|plan|future|dream|ambition|target|objective|resolution/i,
+      'reflection': /think|reflect|consider|ponder|meditate|mindful|awareness/i
+    };
+    
+    Object.entries(topicKeywords).forEach(([topic, regex]) => {
+      if (regex.test(content)) {
+        topics.push({ name: topic, confidence: 0.6 });
+      }
+    });
+    
+    if (topics.length === 0) {
+      topics.push({ name: 'personal reflection', confidence: 0.5 });
+    }
+    
+    // Generate insights based on content analysis
+    const insights = [];
+    if (wordCount > 200) {
+      insights.push('This detailed entry shows deep reflection and self-awareness.');
+    }
+    if (positiveMatches > 0) {
+      insights.push('Your positive outlook shines through in this entry.');
+    }
+    if (negativeMatches > 0) {
+      insights.push('Acknowledging difficult emotions is a sign of emotional intelligence.');
+    }
+    if (topics.length > 2) {
+      insights.push('You touched on multiple important life areas in this reflection.');
+    }
+    if (insights.length === 0) {
+      insights.push('Every journal entry is a step toward greater self-understanding.');
+    }
+    
     return {
       emotion: {
         primary: primaryEmotion,
-        secondary: null,
+        secondary: secondaryEmotion,
         intensity: intensity,
-        confidence: 0.3
+        confidence: confidence
       },
-      topics: [
-        { name: 'general reflection', confidence: 0.5 }
-      ],
-      beliefs: [],
-      summary: `A ${wordCount}-word journal entry reflecting on personal thoughts and experiences.`,
-      insights: ['Consider reflecting on the main themes of this entry for deeper understanding.']
+      topics: topics.slice(0, 5), // Limit to top 5 topics
+      beliefs: [], // Keep empty for fallback
+      summary: `A thoughtful ${wordCount}-word journal entry exploring ${topics.length > 0 ? topics[0].name : 'personal experiences'}. Your writing shows ${primaryEmotion === 'joy' ? 'positive energy' : primaryEmotion === 'sadness' ? 'emotional depth' : 'thoughtful reflection'}.`,
+      insights: insights.slice(0, 3), // Limit to top 3 insights
+      analyzedAt: new Date(),
+      fallbackMode: true // Flag to indicate this is fallback analysis
     };
   }
 
@@ -213,6 +291,12 @@ Focus on understanding the writer's emotional state, concerns, and underlying va
       }
 
       console.log(`Generating trend analysis for ${analyses.length} entries`);
+      
+      // Check if OpenAI is available
+      if (!this.apiKeyAvailable || !this.openai) {
+        console.log('📊 Using fallback trend analysis (OpenAI not available)');
+        return this.getEmptyTrendAnalysis('Your growth patterns are emerging beautifully! Keep journaling to reveal deeper insights.');
+      }
       
       // Filter out invalid analyses
       const validAnalyses = analyses.filter(item => item && item.analysis);

@@ -184,6 +184,9 @@ const AlfredAnalysis = ({ analysis, entryId, onAnalyze }) => {
               <h4 className="text-sm font-semibold text-text-primary font-jakarta tracking-wide">Alfred's Analysis</h4>
               <p className="text-xs text-text-tertiary font-jakarta">
                 Analyzed on {analysis?.analyzedAt ? new Date(analysis.analyzedAt).toLocaleDateString() : 'Unknown date'}
+                {analysis?.fallbackMode && (
+                  <span className="ml-2 text-yellow-400">• Basic Analysis</span>
+                )}
               </p>
             </div>
           </div>
