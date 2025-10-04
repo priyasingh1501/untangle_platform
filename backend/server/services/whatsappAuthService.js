@@ -94,6 +94,24 @@ async function loginWithCredentials(phoneNumber, email, password) {
 
     // Verify password using the same method as web authentication
     const isPasswordValid = await user.comparePassword(password);
+    // Add detailed password comparison logging
+    console.log(`🔐 Password comparison details:`);
+    console.log(`   - Input password: "${password}"`);
+    console.log(`   - Password length: ${password.length}`);
+    console.log(`   - Password type: ${typeof password}`);
+    console.log(`   - User password hash: ${user.password.substring(0, 20)}...`);
+    
+    // Test both methods
+    const method1 = await user.comparePassword(password);
+    const bcrypt = require('bcrypt');
+    const method2 = await bcrypt.compare(password, user.password);
+    
+    console.log(`   - user.comparePassword(): ${method1}`);
+    console.log(`   - bcrypt.compare(): ${method2}`);
+    
+    // Use the more reliable method
+    const isPasswordValid = method2; // Use direct bcrypt comparison
+
     if (!isPasswordValid) {
       // Increment login attempts and add failed attempt (same as web authentication)
       user.incrementLoginAttempts();
