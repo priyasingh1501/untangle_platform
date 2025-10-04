@@ -58,6 +58,10 @@ class EncryptionService {
     try {
       if (!text) return text;
       
+      console.log('EncryptionService: Starting encryption process');
+      console.log('EncryptionService: Key buffer length:', this.keyBuffer.length);
+      console.log('EncryptionService: Algorithm:', this.algorithm);
+      
       const iv = crypto.randomBytes(this.ivLength);
       const cipher = crypto.createCipherGCM(this.algorithm, this.keyBuffer, iv);
       
@@ -66,14 +70,21 @@ class EncryptionService {
       
       const tag = cipher.getAuthTag();
       
+      console.log('EncryptionService: Encryption completed successfully');
+      
       return {
         encrypted,
         iv: iv.toString('hex'),
         tag: tag.toString('hex')
       };
     } catch (error) {
-      console.error('Encryption error:', error);
-      throw new Error('Failed to encrypt data');
+      console.error('EncryptionService: Encryption error:', {
+        error: error.message,
+        stack: error.stack,
+        keyLength: this.keyBuffer?.length,
+        algorithm: this.algorithm
+      });
+      throw new Error(`Failed to encrypt data: ${error.message}`);
     }
   }
 

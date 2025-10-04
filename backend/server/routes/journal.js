@@ -91,9 +91,15 @@ router.post('/entries', auth, async (req, res) => {
     
     // Try encrypted entry method first, fallback to unencrypted if encryption fails
     try {
+      console.log('Attempting to create encrypted journal entry...');
       await journal.addEncryptedEntry(newEntryData);
+      console.log('Encrypted journal entry created successfully');
     } catch (encryptionError) {
-      console.error('Encryption failed, falling back to unencrypted storage:', encryptionError.message);
+      console.error('Encryption failed, falling back to unencrypted storage:', {
+        error: encryptionError.message,
+        stack: encryptionError.stack,
+        userId: req.user.userId || req.user.id || req.user._id
+      });
       
       // Fallback: Add entry without encryption
       const fallbackEntry = {
@@ -104,6 +110,7 @@ router.post('/entries', auth, async (req, res) => {
       
       journal.entries.push(fallbackEntry);
       await journal.save();
+      console.log('Fallback unencrypted journal entry created successfully');
     }
     
     // Get the newly added entry with decrypted content for response
