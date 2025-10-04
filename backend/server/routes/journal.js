@@ -83,7 +83,7 @@ router.post('/entries', auth, async (req, res) => {
       content,
       type: type || 'daily',
       mood: mood || 'neutral',
-      tags: tags || [],
+      tags: Array.isArray(tags) ? tags.filter(tag => typeof tag === 'string') : [],
       isPrivate: isPrivate !== undefined ? isPrivate : journal.settings.defaultPrivacy === 'private',
       location,
       weather
@@ -104,6 +104,7 @@ router.post('/entries', auth, async (req, res) => {
       // Fallback: Add entry without encryption
       const fallbackEntry = {
         ...newEntryData,
+        tags: Array.isArray(newEntryData.tags) ? newEntryData.tags.filter(tag => typeof tag === 'string') : [],
         createdAt: new Date(),
         updatedAt: new Date()
       };
