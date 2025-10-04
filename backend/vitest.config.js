@@ -1,6 +1,6 @@
-import { defineConfig } from 'vitest/config';
+const { defineConfig } = require('vitest/config');
 
-export default defineConfig({
+module.exports = defineConfig({
   test: {
     environment: 'node',
     globals: true,
@@ -9,7 +9,8 @@ export default defineConfig({
     exclude: [
       '**/node_modules/**',
       '**/e2e-tests/**',
-      '**/client/**'
+      '**/client/**',
+      '**/playwright-report/**'
     ],
     // Increase timeout for slow tests
     testTimeout: 30000,

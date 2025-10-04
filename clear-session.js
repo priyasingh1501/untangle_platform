@@ -38,3 +38,4 @@ if (window.location.pathname !== '/login') {
 
 console.log('✨ Session cleared successfully!');
 
+
