@@ -334,10 +334,12 @@ async function handleAuthCommands(phoneNumber, messageText) {
   } else {
     // Not authenticated - handle login commands
     if (text.startsWith('login ')) {
-      const loginParts = text.substring(6).trim().split(' ');
+      // Parse login command BEFORE converting to lowercase to preserve password case
+      const originalText = messageText.trim();
+      const loginParts = originalText.substring(6).trim().split(' ');
       if (loginParts.length >= 2) {
-        const email = loginParts[0];
-        const password = loginParts.slice(1).join(' '); // Join remaining parts as password (in case password has spaces)
+        const email = loginParts[0].toLowerCase(); // Only email should be lowercase
+        const password = loginParts.slice(1).join(' '); // Preserve password case
         
         if (email && password) {
           const result = await loginWithCredentials(phoneNumber, email, password);
