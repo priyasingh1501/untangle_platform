@@ -167,6 +167,28 @@ router.post('/search', auth, async (req, res) => {
       topResults: results.slice(0, 3).map(r => ({ name: r.name, source: r.source, score: r.relevanceScore }))
     });
 
+    // If no results found and user is authenticated, suggest AI analysis
+    if (results.length === 0 && req.user) {
+      console.log('🤖 No results found, suggesting AI analysis for:', searchQuery);
+      
+      res.json({
+        message: 'No food items found',
+        results: [],
+        totalFound: 0,
+        sources: source === 'combined' ? ['local', 'usda', 'off'] : [source],
+        suggestions: {
+          aiAnalysis: {
+            available: true,
+            message: `No results found for "${searchQuery}". Would you like to analyze this food item with AI?`,
+            endpoint: '/api/food/analyze',
+            method: 'POST',
+            body: { foodName: searchQuery }
+          }
+        }
+      });
+      return;
+    }
+
     res.json({
       message: 'Search completed',
       results,
@@ -966,6 +988,119 @@ router.post('/custom', auth, async (req, res) => {
     console.error('Error creating custom food:', error);
     res.status(500).json({
       message: 'Error creating custom food item',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * Analyze unknown food item using AI and save to database
+ * POST /api/food/analyze
+ */
+router.post('/analyze', auth, async (req, res) => {
+  try {
+    const { foodName, description } = req.body;
+    
+    if (!foodName || foodName.trim().length === 0) {
+      return res.status(400).json({
+        message: 'Food name is required'
+      });
+    }
+
+    const trimmedName = foodName.trim();
+    
+    // Check if food already exists in database
+    const existingFood = await FoodItem.findOne({
+      $or: [
+        { nameFold: { $regex: `^${foldName(trimmedName)}$`, $options: 'i' } },
+        { aliases: { $regex: trimmedName, $options: 'i' } }
+      ]
+    });
+
+    if (existingFood) {
+      return res.json({
+        message: 'Food item already exists in database',
+        food: existingFood,
+        fromDatabase: true
+      });
+    }
+
+    // Get AI service
+    const aiService = ServiceFactory.get('OpenAIService');
+    
+    if (!aiService) {
+      return res.status(503).json({
+        message: 'AI service not available'
+      });
+    }
+
+    console.log(`🤖 Analyzing unknown food item: ${trimmedName}`);
+    
+    // Analyze food using AI
+    const aiAnalysis = await aiService.analyzeFoodItem(trimmedName, description);
+    
+    if (!aiAnalysis) {
+      return res.status(500).json({
+        message: 'Failed to analyze food item with AI'
+      });
+    }
+
+    console.log(`✅ AI analysis completed for: ${aiAnalysis.name}`);
+
+    // Create food item from AI analysis
+    const foodData = {
+      source: 'AI_ANALYZED',
+      externalId: `ai_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      name: aiAnalysis.name,
+      nameFold: foldName(aiAnalysis.name),
+      aliases: aiAnalysis.aliases,
+      portionGramsDefault: aiAnalysis.portionGramsDefault,
+      portionUnits: [{
+        unit: 'piece',
+        grams: aiAnalysis.portionGramsDefault,
+        description: 'Standard piece',
+        isDefault: true
+      }],
+      nutrients: aiAnalysis.nutrients,
+      gi: aiAnalysis.gi,
+      gl: null, // Will be calculated if needed
+      fodmap: aiAnalysis.fodmap,
+      novaClass: aiAnalysis.novaClass,
+      tags: aiAnalysis.tags,
+      provenance: {
+        source: 'AI Analysis',
+        origin: 'ai_generated',
+        confidence: aiAnalysis.confidence,
+        lastVerifiedAt: new Date(),
+        notes: aiAnalysis.notes || `AI-analyzed food item: ${trimmedName}`,
+        aiResponse: aiAnalysis.aiResponse
+      },
+      qualityFlags: [{
+        flag: 'AI_ANALYZED',
+        level: 'info',
+        message: 'This food item was analyzed and added by AI',
+        value: aiAnalysis.confidence,
+        threshold: 0.5
+      }]
+    };
+
+    // Save to database
+    const newFood = new FoodItem(foodData);
+    await newFood.save();
+
+    console.log(`✅ AI-analyzed food saved to database: ${newFood.name} (${newFood._id})`);
+
+    res.status(201).json({
+      message: 'Food item analyzed and saved successfully',
+      food: newFood,
+      fromAI: true,
+      confidence: aiAnalysis.confidence
+    });
+
+  } catch (error) {
+    console.error('Error analyzing food item:', error);
+    res.status(500).json({
+      message: 'Error analyzing food item',
       error: error.message
     });
   }

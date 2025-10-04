@@ -10,7 +10,12 @@ const Food = () => {
 
   // Function to trigger refresh of meal data
   const triggerMealRefresh = useCallback(() => {
-    setRefreshTrigger(prev => prev + 1);
+    console.log('Food page: Triggering meal refresh...');
+    setRefreshTrigger(prev => {
+      const newValue = prev + 1;
+      console.log('Food page: Refresh trigger updated from', prev, 'to', newValue);
+      return newValue;
+    });
   }, []);
 
   if (!user) {

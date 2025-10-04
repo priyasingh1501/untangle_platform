@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, PlusCircle } from 'lucide-react';
 import CreateCustomFood from '../food/CreateCustomFood';
 
-const FoodSearch = ({ results, isSearching, hasSearched, onAddFood, searchQuery = '' }) => {
+const FoodSearch = ({ results, isSearching, hasSearched, onAddFood, searchQuery = '', aiAnalysisSuggestion = null, onAnalyzeWithAI = null, isAnalyzing = false }) => {
   const [showCreateCustom, setShowCreateCustom] = useState(false);
   // Don't show anything until user has searched
   if (!hasSearched) {
@@ -40,6 +40,41 @@ const FoodSearch = ({ results, isSearching, hasSearched, onAddFood, searchQuery 
             Add Missing Food
           </button>
         </div>
+        
+        {/* AI Analysis Suggestion */}
+        {aiAnalysisSuggestion && (
+          <div className="bg-gradient-to-r from-[#1E49C9]/20 to-[#3EA6FF]/20 border border-[#1E49C9]/30 rounded-lg p-4 mb-4">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 w-8 h-8 bg-[#1E49C9] rounded-full flex items-center justify-center">
+                <span className="text-white text-sm">🤖</span>
+              </div>
+              <div className="flex-1">
+                <h4 className="font-semibold text-[#E8EEF2] mb-2">AI Food Analysis Available</h4>
+                <p className="text-sm text-[#C9D1D9] mb-3">
+                  {aiAnalysisSuggestion.message}
+                </p>
+                <button
+                  onClick={() => onAnalyzeWithAI && onAnalyzeWithAI(searchQuery)}
+                  disabled={isAnalyzing}
+                  className="flex items-center gap-2 px-4 py-2 bg-[#1E49C9] text-white text-sm font-medium rounded-lg hover:bg-[#1E49C9]/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {isAnalyzing ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Analyzing...
+                    </>
+                  ) : (
+                    <>
+                      <span>✨</span>
+                      Analyze with AI
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        
         <div className="text-center py-8 text-[#6B7280]">
           <p className="text-sm text-red-400">No results found. Try a different search term.</p>
           <p className="text-xs mt-2 text-[#6B7280]">Try: idli, roti, paneer, dal, etc.</p>
@@ -140,9 +175,11 @@ const FoodSearch = ({ results, isSearching, hasSearched, onAddFood, searchQuery 
                       ? 'bg-blue-900/30 text-blue-300 border-blue-700/50'
                       : food.source === 'OpenFoodFacts'
                       ? 'bg-purple-900/30 text-purple-300 border-purple-700/50'
+                      : food.source === 'AI_ANALYZED'
+                      ? 'bg-gradient-to-r from-[#1E49C9]/30 to-[#3EA6FF]/30 text-[#1E49C9] border-[#1E49C9]/50'
                       : 'bg-gray-900/30 text-gray-300 border-gray-700/50'
                   }`}>
-                    {food.source}
+                    {food.source === 'AI_ANALYZED' ? 'AI Analyzed' : food.source}
                   </span>
                 </div>
                 

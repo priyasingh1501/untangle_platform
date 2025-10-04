@@ -50,6 +50,8 @@ const DailyMealKPIs = ({ refreshTrigger }) => {
       return;
     }
 
+    console.log('DailyMealKPIs: Fetching today\'s meals...', { isRefresh, token: !!token });
+    
     if (isRefresh) {
       setRefreshing(true);
     } else {
@@ -58,15 +60,16 @@ const DailyMealKPIs = ({ refreshTrigger }) => {
     
     try {
       const today = getTodayDate();
+      console.log('DailyMealKPIs: Fetching meals for date:', today);
       
-      const response = await fetch(
-        `${buildApiUrl('/api/meals')}?startDate=${today}&endDate=${today}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        }
-      );
+      const url = `${buildApiUrl('/api/meals')}?startDate=${today}&endDate=${today}&_t=${Date.now()}`;
+      console.log('DailyMealKPIs: Fetching from URL:', url);
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -75,6 +78,7 @@ const DailyMealKPIs = ({ refreshTrigger }) => {
       }
 
       const data = await response.json();
+      console.log('DailyMealKPIs: Received meals data:', { mealCount: data.meals?.length || 0, meals: data.meals });
       setDailyMeals(data.meals || []);
       setError(null);
     } catch (err) {
@@ -101,14 +105,14 @@ const DailyMealKPIs = ({ refreshTrigger }) => {
     try {
       const { startDate, endDate } = getWeeklyDateRange();
       
-      const response = await fetch(
-        `${buildApiUrl('/api/meals')}?startDate=${startDate}&endDate=${endDate}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        }
-      );
+      const url = `${buildApiUrl('/api/meals')}?startDate=${startDate}&endDate=${endDate}&_t=${Date.now()}`;
+      console.log('DailyMealKPIs: Fetching weekly meals from URL:', url);
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -137,6 +141,7 @@ const DailyMealKPIs = ({ refreshTrigger }) => {
   // Respond to refresh trigger from parent component
   useEffect(() => {
     if (refreshTrigger > 0) {
+      console.log('DailyMealKPIs: Refresh triggered, refreshing data...', refreshTrigger);
       fetchTodayMeals(true);
       fetchWeeklyMeals(true);
     }
@@ -301,7 +306,7 @@ const DailyMealKPIs = ({ refreshTrigger }) => {
             No Meals {activeTab === 'daily' ? 'Today' : 'This Week'}
           </h3>
           <p className="font-jakarta text-text-secondary mb-4">
-            Log your meals to see {activeTab === 'daily' ? 'daily' : 'weekly'} nutrition insights
+            Log your meals to see {activeTab === 'daily' ? 'daily' : 'weekly'} nutrition insights and track your eating patterns
           </p>
           <a
             href="/food"
@@ -309,6 +314,20 @@ const DailyMealKPIs = ({ refreshTrigger }) => {
           >
             LOG MEAL
           </a>
+        </div>
+        
+        {/* Empty State Meal List Placeholder */}
+        <div className="mt-6 p-6 bg-background-tertiary rounded-xl border border-border-primary">
+          <div className="text-lg font-semibold text-text-primary mb-4 text-center">
+            {activeTab === 'daily' ? 'Today\'s Meals' : 'This Week\'s Meals'}
+          </div>
+          <div className="text-center py-8 text-text-secondary">
+            <div className="w-12 h-12 bg-background-primary rounded-full mx-auto mb-3 flex items-center justify-center">
+              <Utensils className="text-text-muted" size={20} />
+            </div>
+            <p className="text-sm">No meals logged yet</p>
+            <p className="text-xs mt-1 opacity-75">Your logged meals will appear here</p>
+          </div>
         </div>
       </Card>
     );
@@ -324,7 +343,7 @@ const DailyMealKPIs = ({ refreshTrigger }) => {
         <button
           onClick={handleRefresh}
           disabled={refreshing}
-          className="flex items-center gap-2 px-3 py-2 font-jakarta text-sm font-medium text-text-secondary hover:text-text-primary disabled:opacity-50 transition-colors bg-background-tertiary rounded-lg border border-border-primary hover:bg-background-secondary"
+          className="flex items-center gap-2 px-4 py-2 font-jakarta text-sm font-medium text-text-secondary hover:text-text-primary disabled:opacity-50 transition-all duration-200 bg-background-tertiary rounded-lg border border-border-primary hover:bg-background-secondary hover:border-border-secondary"
         >
           <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
           Refresh
@@ -359,7 +378,7 @@ const DailyMealKPIs = ({ refreshTrigger }) => {
 
       {/* Nutrition Summary */}
       <div className="mb-6 p-6 bg-background-tertiary rounded-xl border border-border-primary">
-        <div className="grid grid-cols-4 gap-6">
+        <div className="grid grid-cols-4 gap-6 mb-6">
           <div className="text-center">
             <div className="text-2xl font-bold text-text-primary mb-1">{Math.round(currentNutrition.kcal || 0)}</div>
             <div className="text-sm text-text-secondary font-medium">kcal</div>
@@ -380,27 +399,27 @@ const DailyMealKPIs = ({ refreshTrigger }) => {
         
         {/* Health Effects Summary */}
         {Object.entries(currentEffects).some(([effectKey, effectData]) => (effectData.score || 0) > 0) && (
-          <div className="mt-6 pt-6 border-t border-border-primary">
+          <div className="pt-6 border-t border-border-primary">
             <details className="group">
-              <summary className="cursor-pointer text-sm font-medium text-text-secondary hover:text-text-primary transition-colors flex items-center gap-2">
+              <summary className="cursor-pointer text-sm font-medium text-text-secondary hover:text-text-primary transition-colors flex items-center justify-center gap-2 mb-4">
                 <span>Effects</span>
-                <span className="px-2 py-1 bg-background-primary rounded-full text-xs font-semibold">
+                <span className="px-3 py-1 bg-background-primary rounded-lg border border-border-primary text-xs font-semibold text-text-primary">
                   {Object.entries(currentEffects).filter(([effectKey, effectData]) => (effectData.score || 0) > 0).length}
                 </span>
               </summary>
-              <div className="flex flex-wrap gap-3 mt-4">
+              <div className="flex flex-wrap gap-3 justify-center">
                 {Object.entries(currentEffects)
                   .filter(([effectKey, effectData]) => (effectData.score || 0) > 0)
                   .map(([effectKey, effectData]) => {
                   const score = effectData.score || 0;
-                  const bgColor = score >= 6 ? 'bg-[#1E49C9]/20 border-[#1E49C9]/30 text-[#1E49C9]' : 
-                                 score >= 4 ? 'bg-yellow-900/20 border-yellow-500/30 text-yellow-300' : 
-                                 'bg-red-900/20 border-red-500/30 text-red-300';
+                  const bgColor = score >= 6 ? 'bg-[#1E49C9]/20 border-[#1E49C9]/30 text-[#1E49C9] hover:bg-[#1E49C9]/30' : 
+                                 score >= 4 ? 'bg-yellow-900/20 border-yellow-500/30 text-yellow-300 hover:bg-yellow-900/30' : 
+                                 'bg-red-900/20 border-red-500/30 text-red-300 hover:bg-red-900/30';
 
                   return (
                     <div 
                       key={effectKey} 
-                      className={`px-4 py-2 rounded-lg border text-sm cursor-pointer hover:opacity-80 transition-opacity font-medium ${bgColor}`}
+                      className={`px-4 py-2 rounded-lg border text-sm cursor-pointer transition-all duration-200 font-medium ${bgColor}`}
                       onClick={() => handleEffectClick(effectKey, effectData, null)}
                     >
                       <span className="font-medium">{labels[effectKey] || effectKey}</span>
@@ -435,14 +454,14 @@ const DailyMealKPIs = ({ refreshTrigger }) => {
                   .sort((a, b) => (b[1].score || 0) - (a[1].score || 0))
                   .map(([effectKey, effectData]) => {
                   const score = effectData.score || 0;
-                  const bgColor = score >= 6 ? 'bg-[#1E49C9]/20 border-[#1E49C9]/30 text-[#1E49C9]' : 
-                                 score >= 4 ? 'bg-yellow-900/20 border-yellow-500/30 text-yellow-300' : 
-                                 'bg-red-900/20 border-red-500/30 text-red-300';
+                  const bgColor = score >= 6 ? 'bg-[#1E49C9]/20 border-[#1E49C9]/30 text-[#1E49C9] hover:bg-[#1E49C9]/30' : 
+                                 score >= 4 ? 'bg-yellow-900/20 border-yellow-500/30 text-yellow-300 hover:bg-yellow-900/30' : 
+                                 'bg-red-900/20 border-red-500/30 text-red-300 hover:bg-red-900/30';
 
                   return (
                     <div 
                       key={effectKey} 
-                      className={`px-4 py-2 rounded-lg border text-sm cursor-pointer hover:opacity-80 transition-opacity font-medium ${bgColor}`}
+                      className={`px-4 py-2 rounded-lg border text-sm cursor-pointer transition-all duration-200 font-medium ${bgColor}`}
                       onClick={() => handleEffectClick(effectKey, effectData, null)}
                     >
                       <span className="font-medium">{labels[effectKey] || effectKey}</span>
@@ -453,6 +472,147 @@ const DailyMealKPIs = ({ refreshTrigger }) => {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Meal List */}
+      {currentMeals.length > 0 && (
+        <div className="mt-6 p-6 bg-background-tertiary rounded-xl border border-border-primary">
+          <div className="text-lg font-semibold text-text-primary mb-4 text-center">
+            {activeTab === 'daily' ? 'Today\'s Meals' : 'This Week\'s Meals'}
+          </div>
+          
+          <div className="space-y-4">
+            {currentMeals.map((meal, index) => (
+              <div key={meal._id || index} className="bg-background-primary rounded-lg border border-border-primary p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-[#1E49C9]/20 rounded-full flex items-center justify-center">
+                      <span className="text-sm font-semibold text-[#1E49C9]">{index + 1}</span>
+                    </div>
+                    <div>
+                      <div className="font-medium text-text-primary">
+                        {formatMealTime(meal.ts)}
+                      </div>
+                      <div className="text-sm text-text-secondary">
+                        {meal.items?.length || 0} item{(meal.items?.length || 0) !== 1 ? 's' : ''}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Meal Score */}
+                  {meal.computed?.mindfulMealScore && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-text-secondary">Score:</span>
+                      <div className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                        meal.computed.mindfulMealScore >= 4 
+                          ? 'bg-green-900/30 text-green-300 border border-green-500/30'
+                          : meal.computed.mindfulMealScore >= 3
+                          ? 'bg-yellow-900/30 text-yellow-300 border border-yellow-500/30'
+                          : 'bg-red-900/30 text-red-300 border border-red-500/30'
+                      }`}>
+                        {meal.computed.mindfulMealScore}/5
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Meal Items */}
+                {meal.items && meal.items.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="text-sm font-medium text-text-secondary mb-2">Items:</div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {meal.items.map((item, itemIndex) => (
+                        <div key={itemIndex} className="flex items-center justify-between bg-background-tertiary rounded px-3 py-2">
+                          <span className="text-sm text-text-primary font-medium">
+                            {item.customName || item.foodId?.name || 'Unknown Item'}
+                          </span>
+                          <span className="text-xs text-text-secondary">
+                            {item.grams}g
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Nutritional Summary */}
+                {meal.computed?.totals && (
+                  <div className="mt-3 pt-3 border-t border-border-primary">
+                    <div className="text-sm font-medium text-text-secondary mb-2">Nutrition:</div>
+                    <div className="grid grid-cols-4 gap-3 text-center">
+                      <div>
+                        <div className="text-sm font-semibold text-text-primary">
+                          {Math.round(meal.computed.totals.kcal || 0)}
+                        </div>
+                        <div className="text-xs text-text-secondary">kcal</div>
+                      </div>
+                      <div>
+                        <div className="text-sm font-semibold text-text-primary">
+                          {Math.round(meal.computed.totals.protein || 0)}g
+                        </div>
+                        <div className="text-xs text-text-secondary">protein</div>
+                      </div>
+                      <div>
+                        <div className="text-sm font-semibold text-text-primary">
+                          {Math.round(meal.computed.totals.carbs || 0)}g
+                        </div>
+                        <div className="text-xs text-text-secondary">carbs</div>
+                      </div>
+                      <div>
+                        <div className="text-sm font-semibold text-text-primary">
+                          {Math.round(meal.computed.totals.fat || 0)}g
+                        </div>
+                        <div className="text-xs text-text-secondary">fat</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Meal Effects */}
+                {meal.computed?.effects && Object.keys(meal.computed.effects).length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-border-primary">
+                    <div className="text-sm font-medium text-text-secondary mb-2">Health Effects:</div>
+                    <div className="flex flex-wrap gap-2">
+                      {Object.entries(meal.computed.effects)
+                        .filter(([effectKey, effectData]) => (effectData.score || 0) > 0)
+                        .slice(0, 4) // Show only top 4 effects
+                        .map(([effectKey, effectData]) => {
+                        const score = effectData.score || 0;
+                        const bgColor = score >= 6 ? 'bg-[#1E49C9]/20 border-[#1E49C9]/30 text-[#1E49C9]' : 
+                                       score >= 4 ? 'bg-yellow-900/20 border-yellow-500/30 text-yellow-300' : 
+                                       'bg-red-900/20 border-red-500/30 text-red-300';
+
+                        return (
+                          <div 
+                            key={effectKey} 
+                            className={`px-2 py-1 rounded text-xs font-medium border ${bgColor}`}
+                          >
+                            {labels[effectKey] || effectKey} ({score})
+                          </div>
+                        );
+                      })}
+                      {Object.keys(meal.computed.effects).filter(key => (meal.computed.effects[key]?.score || 0) > 0).length > 4 && (
+                        <div className="px-2 py-1 rounded text-xs font-medium border bg-background-secondary text-text-secondary border-border-primary">
+                          +{Object.keys(meal.computed.effects).filter(key => (meal.computed.effects[key]?.score || 0) > 0).length - 4} more
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Meal Notes */}
+                {meal.notes && (
+                  <div className="mt-3 pt-3 border-t border-border-primary">
+                    <div className="text-sm font-medium text-text-secondary mb-1">Notes:</div>
+                    <div className="text-sm text-text-primary italic">
+                      "{meal.notes}"
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

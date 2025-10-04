@@ -28,7 +28,7 @@ const portionUnitSchema = new mongoose.Schema({
 const foodItemSchema = new mongoose.Schema({
   source: {
     type: String,
-    enum: ['USDA', 'IFCT', 'SEED', 'OpenFoodFacts', 'CUSTOM'], // Expanded enum
+    enum: ['USDA', 'IFCT', 'SEED', 'OpenFoodFacts', 'CUSTOM', 'AI_ANALYZED'], // Expanded enum
     required: true
   },
   externalId: String,

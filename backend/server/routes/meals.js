@@ -431,6 +431,7 @@ router.get('/', auth, async (req, res) => {
     sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
 
     console.log('🔍 GET /api/meals - Query:', JSON.stringify(query, null, 2));
+    console.log('🔍 GET /api/meals - Date range:', { startDate, endDate });
     
     const meals = await Meal.find(query)
       .populate('items.foodId')

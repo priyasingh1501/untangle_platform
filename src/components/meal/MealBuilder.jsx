@@ -15,6 +15,8 @@ const MealBuilder = ({ onMealSaved }) => {
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const [aiAnalysisSuggestion, setAiAnalysisSuggestion] = useState(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [mealItems, setMealItems] = useState([]);
   const [context, setContext] = useState({
     lateNightEating: false,
@@ -155,7 +157,17 @@ const MealBuilder = ({ onMealSaved }) => {
           }, []);
           
           console.log('✅ Multi-source search successful, found:', uniqueFoods.length, 'foods');
+          
+          // Check if we have suggestions for AI analysis
+          if (uniqueFoods.length === 0 && data.suggestions?.aiAnalysis) {
+            console.log('🤖 AI analysis suggestion available');
+            setSearchResults([]);
+            setAiAnalysisSuggestion(data.suggestions.aiAnalysis);
+            return;
+          }
+          
           setSearchResults(uniqueFoods);
+          setAiAnalysisSuggestion(null);
           return;
         }
       }
@@ -205,6 +217,58 @@ const MealBuilder = ({ onMealSaved }) => {
       toast.error('Error searching foods');
     } finally {
       setIsSearching(false);
+    }
+  }, [token]);
+
+  // Analyze food with AI
+  const analyzeFoodWithAI = useCallback(async (foodName) => {
+    if (!token || !foodName) return;
+
+    setIsAnalyzing(true);
+    try {
+      console.log('🤖 Analyzing food with AI:', foodName);
+      
+      const response = await fetch(buildApiUrl('/api/food/analyze'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ foodName })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ AI analysis completed:', data);
+        
+        if (data.food) {
+          // Add the AI-analyzed food to search results
+          const aiFood = {
+            ...data.food,
+            source: 'AI_ANALYZED',
+            relevanceScore: 1.0, // High relevance since it's exactly what user searched for
+            provenance: {
+              source: 'AI Analysis',
+              confidence: data.confidence || 0.7
+            }
+          };
+          
+          setSearchResults([aiFood]);
+          setAiAnalysisSuggestion(null);
+          toast.success(`AI analyzed "${foodName}" and added it to the database!`);
+        } else {
+          toast.error('Failed to analyze food with AI');
+        }
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('AI analysis failed:', response.status, errorData);
+        toast.error(`AI analysis failed: ${errorData.message || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error analyzing food with AI:', error);
+      toast.error('Error analyzing food with AI');
+    } finally {
+      setIsAnalyzing(false);
     }
   }, [token]);
 
@@ -329,7 +393,10 @@ const MealBuilder = ({ onMealSaved }) => {
         // Notify parent component to refresh meal data
         if (onMealSaved) {
           console.log('MealBuilder: Meal saved, notifying parent to refresh');
-          onMealSaved();
+          // Add a small delay to ensure the database has been updated
+          setTimeout(() => {
+            onMealSaved();
+          }, 500);
         }
       } else {
         const errorData = await response.json().catch(() => ({}));
@@ -425,6 +492,9 @@ const MealBuilder = ({ onMealSaved }) => {
               hasSearched={hasSearched}
               onAddFood={addFoodToMeal}
               searchQuery={searchQuery}
+              aiAnalysisSuggestion={aiAnalysisSuggestion}
+              onAnalyzeWithAI={analyzeFoodWithAI}
+              isAnalyzing={isAnalyzing}
             />
           </Card>
         </motion.div>

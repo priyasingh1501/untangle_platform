@@ -249,6 +249,166 @@ IMPORTANT: Return your response as valid JSON in this exact format:
     }
   }
 
+  /**
+   * Analyze unknown food item using AI to extract nutritional information
+   * @param {String} foodName - Name of the food item
+   * @param {String} description - Optional description or context
+   * @returns {Object} Analyzed food data with nutritional information
+   */
+  async analyzeFoodItem(foodName, description = '') {
+    if (!this.openai) {
+      console.warn('⚠️ OpenAI not available, cannot analyze food item');
+      return null;
+    }
+    
+    try {
+      const prompt = this.buildFoodAnalysisPrompt(foodName, description);
+      
+      const response = await this.openai.chat.completions.create({
+        model: 'gpt-4',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a nutrition expert specializing in food analysis. Analyze the provided food item and extract comprehensive nutritional information.
+
+Your analysis should be:
+1. Accurate and evidence-based
+2. Focused on per 100g nutritional values
+3. Include all major macronutrients and key micronutrients
+4. Consider typical preparation methods
+5. Account for cultural variations and common serving sizes
+
+Provide nutritional data for these nutrients (per 100g):
+- kcal (calories)
+- protein (grams)
+- fat (grams) 
+- carbs (grams)
+- fiber (grams)
+- sugar (grams)
+- vitaminC (milligrams)
+- zinc (milligrams)
+- selenium (milligrams)
+- iron (milligrams)
+- omega3 (grams)
+
+Also provide:
+- Typical serving size in grams
+- Glycemic Index (GI) if known
+- FODMAP classification (Low/Medium/High/Unknown)
+- NOVA classification (1=unprocessed, 2=processed, 3=ultra-processed, 4=ultra-processed with additives)
+- Relevant tags (e.g., "vegetarian", "gluten-free", "high-protein")
+- Common aliases or alternative names
+
+IMPORTANT: Return your response as valid JSON in this exact format:
+{
+  "name": "Standardized food name",
+  "aliases": ["alternative name 1", "alternative name 2"],
+  "portionGramsDefault": 100,
+  "nutrients": {
+    "kcal": 0,
+    "protein": 0,
+    "fat": 0,
+    "carbs": 0,
+    "fiber": 0,
+    "sugar": 0,
+    "vitaminC": 0,
+    "zinc": 0,
+    "selenium": 0,
+    "iron": 0,
+    "omega3": 0
+  },
+  "gi": 0,
+  "fodmap": "Low/Medium/High/Unknown",
+  "novaClass": 1,
+  "tags": ["tag1", "tag2"],
+  "confidence": 0.0-1.0,
+  "notes": "Additional context or preparation notes"
+}`
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.2, // Low temperature for consistent nutritional data
+        max_tokens: 1000
+      });
+
+      const aiResponse = response.choices[0].message.content;
+      return this.parseFoodAnalysisResponse(aiResponse);
+    } catch (error) {
+      console.error('Error analyzing food item:', error);
+      return null;
+    }
+  }
+
+  buildFoodAnalysisPrompt(foodName, description) {
+    let prompt = `Analyze this food item for nutritional information:\n\n`;
+    prompt += `Food Name: ${foodName}\n`;
+    
+    if (description) {
+      prompt += `Description/Context: ${description}\n`;
+    }
+    
+    prompt += `\nPlease provide comprehensive nutritional analysis including:\n`;
+    prompt += `1. Standardized name and common aliases\n`;
+    prompt += `2. Nutritional values per 100g\n`;
+    prompt += `3. Typical serving size\n`;
+    prompt += `4. Glycemic Index and FODMAP classification\n`;
+    prompt += `5. NOVA processing classification\n`;
+    prompt += `6. Relevant dietary tags\n`;
+    prompt += `7. Confidence level in the analysis\n`;
+    prompt += `8. Any preparation or cultural context notes\n\n`;
+    prompt += `Be as accurate as possible based on nutritional science and food composition databases.`;
+    
+    return prompt;
+  }
+
+  parseFoodAnalysisResponse(aiResponse) {
+    try {
+      // Try to extract JSON from the response
+      const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        
+        // Validate required fields
+        if (!parsed.name || !parsed.nutrients) {
+          console.warn('AI response missing required fields:', parsed);
+          return null;
+        }
+        
+        // Ensure all nutrient values are numbers
+        const nutrients = {};
+        const nutrientFields = ['kcal', 'protein', 'fat', 'carbs', 'fiber', 'sugar', 'vitaminC', 'zinc', 'selenium', 'iron', 'omega3'];
+        
+        nutrientFields.forEach(field => {
+          nutrients[field] = typeof parsed.nutrients[field] === 'number' ? parsed.nutrients[field] : 0;
+        });
+        
+        return {
+          name: parsed.name.trim(),
+          aliases: Array.isArray(parsed.aliases) ? parsed.aliases : [],
+          portionGramsDefault: typeof parsed.portionGramsDefault === 'number' ? parsed.portionGramsDefault : 100,
+          nutrients,
+          gi: typeof parsed.gi === 'number' ? parsed.gi : null,
+          fodmap: ['Low', 'Medium', 'High', 'Unknown'].includes(parsed.fodmap) ? parsed.fodmap : 'Unknown',
+          novaClass: typeof parsed.novaClass === 'number' && parsed.novaClass >= 1 && parsed.novaClass <= 4 ? parsed.novaClass : 1,
+          tags: Array.isArray(parsed.tags) ? parsed.tags : [],
+          confidence: typeof parsed.confidence === 'number' && parsed.confidence >= 0 && parsed.confidence <= 1 ? parsed.confidence : 0.7,
+          notes: typeof parsed.notes === 'string' ? parsed.notes : '',
+          aiAnalyzed: true,
+          aiResponse: aiResponse
+        };
+      }
+      
+      console.warn('No valid JSON found in AI response:', aiResponse);
+      return null;
+    } catch (error) {
+      console.error('Error parsing AI food analysis response:', error);
+      return null;
+    }
+  }
+
   buildInsightPrompt(userData, conversationHistory) {
     let prompt = 'Analyze the following user data and provide insights:\n\n';
     
