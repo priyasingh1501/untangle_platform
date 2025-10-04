@@ -8,7 +8,8 @@ const { auth } = require('../middleware/auth');
 router.get('/', auth, async (req, res) => {
   try {
     const { status, priority, startDate, endDate } = req.query;
-    const query = { userId: req.user._id };
+    const userId = req.user.userId || req.user.id || req.user._id;
+    const query = { userId: userId };
     
     if (status) {
       query.completedAt = status === 'completed' ? { $ne: null } : null;
@@ -41,7 +42,8 @@ router.get('/', auth, async (req, res) => {
 router.get('/stats', auth, async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
-    const query = { userId: req.user._id };
+    const userId = req.user.userId || req.user.id || req.user._id;
+    const query = { userId: userId };
     
     if (startDate && endDate) {
       const start = new Date(startDate);
@@ -75,7 +77,8 @@ router.get('/stats', auth, async (req, res) => {
 // Get task by ID
 router.get('/:id', auth, async (req, res) => {
   try {
-    const task = await Task.findOne({ _id: req.params.id, userId: req.user._id });
+    const userId = req.user.userId || req.user.id || req.user._id;
+    const task = await Task.findOne({ _id: req.params.id, userId: userId });
     
     if (!task) {
       return res.status(404).json({ success: false, message: 'Task not found' });
@@ -95,10 +98,15 @@ router.post('/', auth, async (req, res) => {
   try {
     const { title, description, priority, dueDate, goalIds, estimatedDuration, status, completedAt, actualDuration } = req.body;
     
-    console.log('Creating task with data:', { title, description, priority, dueDate, goalIds, estimatedDuration, status, completedAt, actualDuration, userId: req.user._id });
+    const userId = req.user.userId || req.user.id || req.user._id;
+    console.log('Creating task with data:', { title, description, priority, dueDate, goalIds, estimatedDuration, status, completedAt, actualDuration, userId });
     
     if (!title) {
       return res.status(400).json({ success: false, message: 'Title is required' });
+    }
+    
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'User ID not found in token' });
     }
     
     // Validate goal IDs if provided
@@ -111,7 +119,7 @@ router.post('/', auth, async (req, res) => {
       }
       
       // Check if all goal IDs exist and belong to the user
-      const validGoals = await LifestyleGoal.find({ _id: { $in: goalIds }, userId: req.user._id });
+      const validGoals = await LifestyleGoal.find({ _id: { $in: goalIds }, userId: userId });
       if (validGoals.length !== goalIds.length) {
         return res.status(400).json({ success: false, message: 'Invalid goal IDs' });
       }
@@ -120,7 +128,7 @@ router.post('/', auth, async (req, res) => {
     }
     
     const task = new Task({
-      userId: req.user._id,
+      userId: userId,
       title,
       description,
       priority: priority || 'medium',
@@ -144,7 +152,8 @@ router.post('/', auth, async (req, res) => {
 // Update task
 router.put('/:id', auth, async (req, res) => {
   try {
-    const task = await Task.findOne({ _id: req.params.id, userId: req.user._id });
+    const userId = req.user.userId || req.user.id || req.user._id;
+    const task = await Task.findOne({ _id: req.params.id, userId: userId });
     
     if (!task) {
       return res.status(404).json({ success: false, message: 'Task not found' });
@@ -166,7 +175,8 @@ router.put('/:id', auth, async (req, res) => {
 // Delete task
 router.delete('/:id', auth, async (req, res) => {
   try {
-    const task = await Task.findOneAndDelete({ _id: req.params.id, userId: req.user._id });
+    const userId = req.user.userId || req.user.id || req.user._id;
+    const task = await Task.findOneAndDelete({ _id: req.params.id, userId: userId });
     
     if (!task) {
       return res.status(404).json({ success: false, message: 'Task not found' });
@@ -184,7 +194,8 @@ router.delete('/:id', auth, async (req, res) => {
 // Complete task
 router.post('/:id/complete', auth, async (req, res) => {
   try {
-    const task = await Task.findOne({ _id: req.params.id, userId: req.user._id });
+    const userId = req.user.userId || req.user.id || req.user._id;
+    const task = await Task.findOne({ _id: req.params.id, userId: userId });
     
     if (!task) {
       return res.status(404).json({ success: false, message: 'Task not found' });
@@ -205,7 +216,8 @@ router.post('/:id/complete', auth, async (req, res) => {
 // Uncomplete task
 router.post('/:id/uncomplete', auth, async (req, res) => {
   try {
-    const task = await Task.findOne({ _id: req.params.id, userId: req.user._id });
+    const userId = req.user.userId || req.user.id || req.user._id;
+    const task = await Task.findOne({ _id: req.params.id, userId: userId });
     
     if (!task) {
       return res.status(404).json({ success: false, message: 'Task not found' });

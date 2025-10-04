@@ -399,7 +399,7 @@ router.post('/', auth, async (req, res) => {
  */
 router.get('/', auth, async (req, res) => {
   try {
-    const userId = req.user._id;
+    const userId = req.user.userId || req.user.id || req.user._id;
     const { 
       startDate, 
       endDate, 
@@ -471,7 +471,7 @@ router.get('/', auth, async (req, res) => {
  */
 router.get('/:id', auth, async (req, res) => {
   try {
-    const userId = req.user._id;
+    const userId = req.user.userId || req.user.id || req.user._id;
     const { id } = req.params;
 
     const meal = await Meal.findOne({ _id: id, userId })
@@ -503,7 +503,7 @@ router.get('/:id', auth, async (req, res) => {
  */
 router.put('/:id', auth, async (req, res) => {
   try {
-    const userId = req.user._id;
+    const userId = req.user.userId || req.user.id || req.user._id;
     const { id } = req.params;
     const { items, notes, context, presence, energy } = req.body;
 
@@ -599,7 +599,7 @@ router.put('/:id', auth, async (req, res) => {
  */
 router.delete('/:id', auth, async (req, res) => {
   try {
-    const userId = req.user._id;
+    const userId = req.user.userId || req.user.id || req.user._id;
     const { id } = req.params;
 
     const meal = await Meal.findOneAndDelete({ _id: id, userId });
@@ -629,7 +629,7 @@ router.delete('/:id', auth, async (req, res) => {
  */
 router.get('/stats/overview', auth, async (req, res) => {
   try {
-    const userId = req.user._id;
+    const userId = req.user.userId || req.user.id || req.user._id;
     const { startDate, endDate } = req.query;
 
     let query = { userId };
@@ -693,7 +693,7 @@ module.exports.fetchExternalFoodData = fetchExternalFoodData;
  */
 router.get('/effects/ai', auth, async (req, res) => {
   try {
-    const userId = req.user._id;
+    const userId = req.user.userId || req.user.id || req.user._id;
     const { effect, startDate, endDate } = req.query;
 
     console.log('🤖 AI effect analysis request:', { effect, startDate, endDate, userId });

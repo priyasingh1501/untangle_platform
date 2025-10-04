@@ -11,23 +11,23 @@ const analysisService = ServiceFactory.get('JournalAnalysisService');
 // Get user's journal
 router.get('/', auth, async (req, res) => {
   try {
-    console.log(`[Journal] Fetching journal for user: ${req.user._id}`);
+    console.log(`[Journal] Fetching journal for user: ${req.user.userId || req.user.id || req.user._id}`);
     
-    let journal = await Journal.findOne({ userId: req.user._id });
+    let journal = await Journal.findOne({ userId: req.user.userId || req.user.id || req.user._id });
     
     if (!journal) {
-      console.log(`[Journal] No journal found for user ${req.user._id}, creating new one`);
+      console.log(`[Journal] No journal found for user ${req.user.userId || req.user.id || req.user._id}, creating new one`);
       // Create new journal if it doesn't exist
       journal = new Journal({
-        userId: req.user._id,
+        userId: req.user.userId || req.user.id || req.user._id,
         entries: []
       });
       await journal.save();
-      console.log(`[Journal] Created new journal for user ${req.user._id}`);
+      console.log(`[Journal] Created new journal for user ${req.user.userId || req.user.id || req.user._id}`);
     }
     
     // Get decrypted entries
-    console.log(`[Journal] Decrypting ${journal.entries.length} entries for user ${req.user._id}`);
+    console.log(`[Journal] Decrypting ${journal.entries.length} entries for user ${req.user.userId || req.user.id || req.user._id}`);
     const decryptedEntries = journal.getDecryptedEntries();
     console.log(`[Journal] Successfully decrypted ${decryptedEntries.length} entries`);
     
@@ -37,7 +37,7 @@ router.get('/', auth, async (req, res) => {
     });
   } catch (error) {
     console.error('[Journal] Error fetching journal:', {
-      userId: req.user._id,
+      userId: req.user.userId || req.user.id || req.user._id,
       error: error.message,
       stack: error.stack
     });
@@ -58,7 +58,7 @@ router.get('/', auth, async (req, res) => {
 // Add new journal entry
 router.post('/entries', auth, async (req, res) => {
   try {
-    console.log('Creating journal entry for user:', req.user._id);
+    console.log('Creating journal entry for user:', req.user.userId || req.user.id || req.user._id);
     console.log('Entry data:', { title: req.body.title, content: req.body.content?.substring(0, 50) + '...' });
     
     const { title, content, type, mood, tags, isPrivate, location, weather } = req.body;
@@ -69,11 +69,11 @@ router.post('/entries', auth, async (req, res) => {
       return res.status(400).json({ message: 'Title and content are required' });
     }
     
-    let journal = await Journal.findOne({ userId: req.user._id });
+    let journal = await Journal.findOne({ userId: req.user.userId || req.user.id || req.user._id });
     
     if (!journal) {
       journal = new Journal({
-        userId: req.user._id,
+        userId: req.user.userId || req.user.id || req.user._id,
         entries: []
       });
     }
@@ -113,7 +113,7 @@ router.post('/entries', auth, async (req, res) => {
         console.log('Analysis result:', JSON.stringify(analysis, null, 2));
         
         // Find the entry and update it with analysis
-        const updatedJournal = await Journal.findOne({ userId: req.user._id });
+        const updatedJournal = await Journal.findOne({ userId: req.user.userId || req.user.id || req.user._id });
         if (updatedJournal) {
           // Find the most recent entry with the same title and content
           // Look for entries created in the last 5 minutes to avoid timing issues
@@ -157,7 +157,7 @@ router.put('/entries/:entryId', auth, async (req, res) => {
     const { entryId } = req.params;
     const updates = req.body;
     
-    const journal = await Journal.findOne({ userId: req.user._id });
+    const journal = await Journal.findOne({ userId: req.user.userId || req.user.id || req.user._id });
     if (!journal) {
       return res.status(404).json({ message: 'Journal not found' });
     }
@@ -183,7 +183,7 @@ router.delete('/entries/:entryId', auth, async (req, res) => {
   try {
     const { entryId } = req.params;
     
-    const journal = await Journal.findOne({ userId: req.user._id });
+    const journal = await Journal.findOne({ userId: req.user.userId || req.user.id || req.user._id });
     if (!journal) {
       return res.status(404).json({ message: 'Journal not found' });
     }
@@ -208,7 +208,7 @@ router.get('/entries/:entryId', auth, async (req, res) => {
   try {
     const { entryId } = req.params;
     
-    const journal = await Journal.findOne({ userId: req.user._id });
+    const journal = await Journal.findOne({ userId: req.user.userId || req.user.id || req.user._id });
     if (!journal) {
       return res.status(404).json({ message: 'Journal not found' });
     }
@@ -231,7 +231,7 @@ router.get('/entries', auth, async (req, res) => {
   try {
     const { type, mood, tags, startDate, endDate, page = 1, limit = 20 } = req.query;
     
-    const journal = await Journal.findOne({ userId: req.user._id });
+    const journal = await Journal.findOne({ userId: req.user.userId || req.user.id || req.user._id });
     if (!journal) {
       return res.json({ entries: [], total: 0, page: 1, totalPages: 0 });
     }
@@ -291,10 +291,10 @@ router.put('/settings', auth, async (req, res) => {
   try {
     const { defaultPrivacy, reminderTime, enableReminders, journalingPrompts } = req.body;
     
-    let journal = await Journal.findOne({ userId: req.user._id });
+    let journal = await Journal.findOne({ userId: req.user.userId || req.user.id || req.user._id });
     if (!journal) {
       journal = new Journal({
-        userId: req.user._id,
+        userId: req.user.userId || req.user.id || req.user._id,
         entries: []
       });
     }
@@ -319,7 +319,7 @@ router.put('/settings', auth, async (req, res) => {
 // Get journal statistics
 router.get('/stats', auth, async (req, res) => {
   try {
-    const journal = await Journal.findOne({ userId: req.user._id });
+    const journal = await Journal.findOne({ userId: req.user.userId || req.user.id || req.user._id });
     if (!journal) {
       return res.json({
         totalEntries: 0,
@@ -369,7 +369,7 @@ router.post('/entries/:entryId/analyze', auth, async (req, res) => {
   try {
     const { entryId } = req.params;
     
-    const journal = await Journal.findOne({ userId: req.user._id });
+    const journal = await Journal.findOne({ userId: req.user.userId || req.user.id || req.user._id });
     if (!journal) {
       return res.status(404).json({ message: 'Journal not found' });
     }
@@ -403,7 +403,7 @@ router.post('/entries/:entryId/analyze', auth, async (req, res) => {
 router.get('/trends', auth, async (req, res) => {
   try {
     const { limit = 10, timeRange = 'month' } = req.query;
-    const userId = req.user._id;
+    const userId = req.user.userId || req.user.id || req.user._id;
     
     // Try to get cached trends first
     const cachedTrends = await JournalTrends.getOrCreateTrends(userId, timeRange, parseInt(limit));
@@ -531,7 +531,7 @@ router.get('/trends', auth, async (req, res) => {
 router.post('/trends/refresh', auth, async (req, res) => {
   try {
     const { timeRange = 'month', limit = 10 } = req.body;
-    const userId = req.user._id;
+    const userId = req.user.userId || req.user.id || req.user._id;
     
     // Delete existing trends for this user and timeRange
     await JournalTrends.deleteMany({ userId, timeRange });
@@ -611,7 +611,7 @@ router.post('/trends/refresh', auth, async (req, res) => {
 // Analyze all entries without analysis
 router.post('/analyze-all', auth, async (req, res) => {
   try {
-    const journal = await Journal.findOne({ userId: req.user._id });
+    const journal = await Journal.findOne({ userId: req.user.userId || req.user.id || req.user._id });
     if (!journal) {
       return res.status(404).json({ message: 'Journal not found' });
     }
