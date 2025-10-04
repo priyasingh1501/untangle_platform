@@ -288,7 +288,25 @@ journalSchema.pre('save', function(next) {
 
 // Method to get all entries with decrypted content
 journalSchema.methods.getDecryptedEntries = function() {
-  return this.entries.map(entry => entry.getDecryptedEntry());
+  return this.entries.map(entry => {
+    // For unencrypted entries, return as-is
+    if (!entry.encryptedTitle && !entry.encryptedContent) {
+      return entry;
+    }
+    // For encrypted entries, try to decrypt
+    try {
+      return entry.getDecryptedEntry();
+    } catch (error) {
+      console.error('Error decrypting entry:', error.message);
+      // Return entry with error message if decryption fails
+      return {
+        ...entry.toObject(),
+        title: '[Error: Unable to decrypt title]',
+        content: '[Error: Unable to decrypt content]',
+        _decryptionError: true
+      };
+    }
+  });
 };
 
 // Method to add a new entry with encryption

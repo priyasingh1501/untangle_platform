@@ -103,8 +103,8 @@ router.post('/entries', auth, async (req, res) => {
     await journal.save();
     console.log('Journal entry created successfully (unencrypted)');
     
-    // Get the newly added entry with decrypted content for response
-    const newEntry = journal.getDecryptedEntry(journal.entries[0]._id);
+    // Get the newly added entry (no decryption needed since we disabled encryption)
+    const newEntry = journal.entries[0];
     
     // Return success immediately, then analyze in background
     res.status(201).json({
