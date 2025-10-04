@@ -108,7 +108,7 @@ async function loginWithCredentials(phoneNumber, email, password) {
     
     // Test both methods
     const method1 = await user.comparePassword(password);
-    const bcrypt = require('bcrypt');
+    const bcrypt = require('bcryptjs');
     const method2 = await bcrypt.compare(password, user.password);
     
     console.log(`   - user.comparePassword(): ${method1}`);
