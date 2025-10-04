@@ -1,4 +1,18 @@
 const User = require('../models/User');
+// DEPLOYMENT TIMESTAMP: 2025-10-04T15:11:05.874Z
+
+// Add explicit database connection check
+const mongoose = require('mongoose');
+
+// Ensure database connection before authentication
+async function ensureDbConnection() {
+  if (mongoose.connection.readyState !== 1) {
+    console.log('🔗 Reconnecting to database...');
+    await mongoose.connect(process.env.MONGODB_URI);
+    console.log('✅ Database reconnected');
+  }
+}
+
 // DEPLOYMENT TIMESTAMP: 2025-10-04T15:06:52.826Z
 
 const WhatsAppSession = require('../models/WhatsAppSession');
@@ -48,6 +62,15 @@ async function sendMessage(phoneNumber, message) {
 async function loginWithCredentials(phoneNumber, email, password) {
   try {
     console.log(`🔐 Attempting login for ${email} from phone ${phoneNumber}`);
+    console.log(`🔐 Attempting login for ${email} from phone ${phoneNumber}`);
+    
+    // Ensure database connection
+    await ensureDbConnection();
+    
+    // Log database connection status
+    console.log(`📊 Database connection status: ${mongoose.connection.readyState}`);
+    console.log(`📊 Database name: ${mongoose.connection.name}`);
+
 
     // Find user by email
     const user = await User.findOne({ email: email.toLowerCase() });
