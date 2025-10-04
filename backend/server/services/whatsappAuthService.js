@@ -92,8 +92,6 @@ async function loginWithCredentials(phoneNumber, email, password) {
       };
     }
 
-    // Verify password using the same method as web authentication
-    const isPasswordValid = await user.comparePassword(password);
     // Add detailed password comparison logging
     console.log(`🔐 Password comparison details:`);
     console.log(`   - Input password: "${password}"`);
