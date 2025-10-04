@@ -69,6 +69,7 @@ async function loginWithCredentials(phoneNumber, email, password) {
   try {
     console.log(`🔐 Attempting login for ${email} from phone ${phoneNumber}`);
     console.log(`🔐 Attempting login for ${email} from phone ${phoneNumber}`);
+    console.log(`🚀 FORCE DEPLOYMENT CHECK - ${new Date().toISOString()}`);
     
     // Ensure database connection
     await ensureDbConnection();
