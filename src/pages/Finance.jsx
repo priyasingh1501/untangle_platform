@@ -78,12 +78,11 @@ const Finance = () => {
     color: '#1E49C9'
   });
 
-  // Derived KPI helpers
+  // Derived KPI helpers - Fixed timezone issues
   const toMonthKey = (d) => {
-    const date = new Date(d);
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    return `${y}-${m}`;
+    // Use ISO string to avoid timezone issues
+    const dateStr = new Date(d).toISOString().slice(0, 7); // YYYY-MM format
+    return dateStr;
   };
 
   const getCurrentMonthKey = () => new Date().toISOString().slice(0, 7);
@@ -134,11 +133,18 @@ const Finance = () => {
       setLoading(true);
       const token = localStorage.getItem('token');
       
+      // Get current month date range for optimized fetching
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      const startDate = startOfMonth.toISOString().split('T')[0];
+      const endDate = endOfMonth.toISOString().split('T')[0];
+      
       const [expensesRes, summaryRes, goalsRes] = await Promise.all([
         axios.get(buildApiUrl('/api/finance/expenses'), {
           headers: { Authorization: `Bearer ${token}` }
         }),
-        axios.get(buildApiUrl('/api/finance/summary'), {
+        axios.get(buildApiUrl(`/api/finance/summary?startDate=${startDate}&endDate=${endDate}`), {
           headers: { Authorization: `Bearer ${token}` }
         }),
         axios.get(buildApiUrl('/api/finance/goals'), {
@@ -492,10 +498,12 @@ const Finance = () => {
 
 
   const getCategoryGoalsWithProgress = () => {
-    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
-    const currentMonthExpenses = expenses.filter(expense => 
-      expense.date.startsWith(currentMonth)
-    );
+    const currentMonth = getCurrentMonthKey(); // Use consistent date function
+    const currentMonthExpenses = expenses.filter(expense => {
+      if (!expense.date) return false;
+      const expenseMonth = toMonthKey(expense.date); // Use consistent date function
+      return expenseMonth === currentMonth;
+    });
 
     // Only show goals that users have actually added (from expenseGoals)
     return expenseGoals.map(goal => {
@@ -523,10 +531,12 @@ const Finance = () => {
 
   // Calculate total impulse buys for current month
   const getCurrentMonthImpulseBuys = () => {
-    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
-    return expenses.filter(expense => 
-      expense.date.startsWith(currentMonth) && expense.impulseBuy
-    ).length;
+    const currentMonth = getCurrentMonthKey(); // Use consistent date function
+    return expenses.filter(expense => {
+      if (!expense.date) return false;
+      const expenseMonth = toMonthKey(expense.date); // Use consistent date function
+      return expenseMonth === currentMonth && expense.impulseBuy;
+    }).length;
   };
 
   // Expense goal category mapping

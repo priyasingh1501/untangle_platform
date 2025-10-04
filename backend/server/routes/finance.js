@@ -25,9 +25,30 @@ router.get('/expenses', auth, async (req, res) => {
   try {
     console.log('🔍 Finance route - Fetching expenses for user:', req.user.userId);
     
-    const expenses = await Expense.find({ userId: req.user.userId })
+    const { startDate, endDate, limit = 100 } = req.query;
+    
+    let query = { userId: req.user.userId };
+    
+    // Add date filtering if provided
+    if (startDate || endDate) {
+      query.date = {};
+      if (startDate) {
+        query.date.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        // Set to end of day to include all expenses on that date
+        const endDateObj = new Date(endDate);
+        endDateObj.setHours(23, 59, 59, 999);
+        query.date.$lte = endDateObj;
+      }
+    }
+    
+    console.log('🔍 Finance query:', JSON.stringify(query, null, 2));
+    console.log('🔍 Date range:', { startDate, endDate });
+    
+    const expenses = await Expense.find(query)
       .sort({ date: -1 })
-      .limit(100);
+      .limit(parseInt(limit));
     
     console.log('🔍 Found expenses:', expenses.length);
     console.log('🔍 First expense (if any):', expenses[0]);
