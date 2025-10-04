@@ -74,9 +74,13 @@ async function loginWithCredentials(phoneNumber, email, password) {
     console.log(`📊 Database connection status: ${mongoose.connection.readyState}`);
     console.log(`📊 Database name: ${mongoose.connection.name}`);
 
-
-    // Find user by email
+    // Find user by email with detailed logging
+    console.log(`🔍 Looking for user with email: ${email.toLowerCase()}`);
     const user = await User.findOne({ email: email.toLowerCase() });
+    console.log(`👤 User found: ${user ? 'YES' : 'NO'}`);
+    if (user) {
+      console.log(`👤 User details: ${user.email}, active: ${user.isActive}, locked: ${user.isLocked}`);
+    }
     if (!user) {
       return {
         success: false,
