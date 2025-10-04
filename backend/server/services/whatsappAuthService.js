@@ -100,7 +100,7 @@ async function loginWithCredentials(phoneNumber, email, password) {
     }
 
     // Add detailed password comparison logging
-    console.log(`🔐 Password comparison details:`);
+    console.log(`🔐 Password comparison details: [DEPLOYMENT_PASSWORD_FIX_${Date.now()}]`);
     console.log(`   - Input password: "${password}"`);
     console.log(`   - Password length: ${password.length}`);
     console.log(`   - Password type: ${typeof password}`);
