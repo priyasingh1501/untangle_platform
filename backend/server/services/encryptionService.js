@@ -63,13 +63,12 @@ class EncryptionService {
       console.log('EncryptionService: Algorithm:', this.algorithm);
       
       const iv = crypto.randomBytes(this.ivLength);
-      const cipher = crypto.createCipher(this.algorithm, this.keyBuffer);
+      const cipher = crypto.createCipheriv(this.algorithm, this.keyBuffer, iv);
       
       let encrypted = cipher.update(text, 'utf8', 'hex');
       encrypted += cipher.final('hex');
       
-      // For compatibility, we'll use a simple approach without auth tag
-      const tag = crypto.randomBytes(16).toString('hex');
+      const tag = cipher.getAuthTag();
       
       console.log('EncryptionService: Encryption completed successfully');
       
@@ -101,15 +100,32 @@ class EncryptionService {
         return encryptedData;
       }
       
-      // Use simple decipher for compatibility
-      const decipher = crypto.createDecipher(this.algorithm, this.keyBuffer);
+      console.log('EncryptionService: Starting decryption process');
+      console.log('EncryptionService: Encrypted data structure:', {
+        hasEncrypted: !!encrypted,
+        hasIv: !!iv,
+        hasTag: !!tag,
+        encryptedLength: encrypted?.length
+      });
+      
+      // Use createDecipheriv for proper GCM mode decryption
+      const ivBuffer = Buffer.from(iv, 'hex');
+      const tagBuffer = Buffer.from(tag, 'hex');
+      const decipher = crypto.createDecipheriv(this.algorithm, this.keyBuffer, ivBuffer);
+      decipher.setAuthTag(tagBuffer);
+      
       let decrypted = decipher.update(encrypted, 'hex', 'utf8');
       decrypted += decipher.final('utf8');
-      
+      console.log('EncryptionService: Decryption completed successfully');
       return decrypted;
+      
     } catch (error) {
-      console.error('Decryption error:', error);
-      throw new Error('Failed to decrypt data');
+      console.error('EncryptionService: Decryption error:', {
+        error: error.message,
+        stack: error.stack,
+        encryptedData: encryptedData
+      });
+      throw new Error(`Failed to decrypt data: ${error.message}`);
     }
   }
 
