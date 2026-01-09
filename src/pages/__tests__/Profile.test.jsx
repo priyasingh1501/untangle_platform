@@ -1,6 +1,7 @@
 import React from 'react';
 import { describe, test, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { BrowserRouter } from 'react-router-dom';
 import Profile from '../../pages/Profile';
 
 vi.mock('../../contexts/AuthContext', () => ({
@@ -9,7 +10,11 @@ vi.mock('../../contexts/AuthContext', () => ({
 
 describe('Profile Page', () => {
   test('renders without crashing and shows basic info', () => {
-    render(<Profile />);
+    render(
+      <BrowserRouter>
+        <Profile />
+      </BrowserRouter>
+    );
     // Loose assertions since Profile content may evolve
     expect(screen.getByText(/Profile/i)).toBeInTheDocument();
   });

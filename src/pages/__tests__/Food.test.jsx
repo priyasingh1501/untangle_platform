@@ -10,6 +10,20 @@ import axios from 'axios';
 // Mock axios
 vi.mock('axios');
 
+// Mock AuthContext to provide a user
+vi.mock('../../contexts/AuthContext', () => ({
+  useAuth: () => ({
+    user: {
+      id: '1',
+      email: 'test@example.com',
+      firstName: 'John',
+      lastName: 'Doe'
+    },
+    token: 'mock-token'
+  }),
+  AuthProvider: ({ children }) => children
+}));
+
 // Mock framer-motion
 vi.mock('framer-motion', () => ({
   motion: {
@@ -25,10 +39,24 @@ vi.mock('react-hot-toast', () => ({
   error: vi.fn(),
 }));
 
-// Mock food components
-vi.mock('../../components/food', () => ({
-  FoodSearch: () => <div data-testid="food-search">Food Search</div>,
-  SearchResults: () => <div data-testid="search-results">Search Results</div>,
+// Mock meal components that Food page uses
+vi.mock('../../components/meal/MealBuilder', () => ({
+  default: () => <div data-testid="meal-builder">Meal Builder</div>,
+}));
+
+vi.mock('../../components/meal/DailyMealKPIs', () => ({
+  default: () => <div data-testid="daily-meal-kpis">Daily Meal KPIs</div>,
+}));
+
+// Mock UI components
+vi.mock('../../components/ui', () => ({
+  Section: ({ children }) => <section>{children}</section>,
+  Banner: ({ children, variant }) => <div data-variant={variant}>{children}</div>,
+  Card: ({ children, className }) => <div className={className}>{children}</div>,
+  Header: ({ children, level, className }) => {
+    const Tag = `h${level || 1}`;
+    return <Tag className={className}>{children}</Tag>;
+  },
 }));
 
 const createTestQueryClient = () => new QueryClient({
@@ -108,97 +136,18 @@ describe('Food Page', () => {
     // Check for page title
     expect(screen.getByText('Food & Nutrition')).toBeInTheDocument();
     
-    // Check for search section
-    expect(screen.getByTestId('food-search')).toBeInTheDocument();
+    // Check for meal builder
+    expect(screen.getByTestId('meal-builder')).toBeInTheDocument();
     
-    // Check for search results section
-    expect(screen.getByTestId('search-results')).toBeInTheDocument();
+    // Check for daily meal KPIs
+    expect(screen.getByTestId('daily-meal-kpis')).toBeInTheDocument();
   });
 
-  test('displays food items when loaded', async () => {
+  test('displays meal builder component', async () => {
     renderWithProviders(<Food />);
     
     await waitFor(() => {
-      expect(screen.getByText('Apple')).toBeInTheDocument();
-      expect(screen.getByText('Banana')).toBeInTheDocument();
-    });
-  });
-
-  test('handles search functionality', async () => {
-    renderWithProviders(<Food />);
-    
-    // Find search input
-    const searchInput = screen.getByPlaceholderText('Search for food items...');
-    
-    // Type in search query
-    fireEvent.change(searchInput, { target: { value: 'apple' } });
-    
-    // Check if search is triggered
-    await waitFor(() => {
-      expect(axios.get).toHaveBeenCalledWith(
-        expect.stringContaining('/api/food/items'),
-        expect.objectContaining({
-          params: expect.objectContaining({
-            search: 'apple'
-          })
-        })
-      );
-    });
-  });
-
-  test('handles barcode scanning', async () => {
-    renderWithProviders(<Food />);
-    
-    // Find barcode scan button
-    const scanButton = screen.getByText('Scan Barcode');
-    
-    // Click scan button
-    fireEvent.click(scanButton);
-    
-    // Check if barcode scanning is initiated
-    // Note: This would typically open a camera or barcode scanner
-    expect(scanButton).toBeInTheDocument();
-  });
-
-  test('handles food item selection', async () => {
-    renderWithProviders(<Food />);
-    
-    await waitFor(() => {
-      expect(screen.getByText('Apple')).toBeInTheDocument();
-    });
-    
-    // Click on a food item
-    const appleItem = screen.getByText('Apple');
-    fireEvent.click(appleItem);
-    
-    // Check if item details are shown
-    // This would typically open a modal or navigate to details
-    expect(appleItem).toBeInTheDocument();
-  });
-
-  test('handles loading states', () => {
-    // Mock loading state
-    axios.get.mockImplementation(() => new Promise(() => {}));
-    
-    renderWithProviders(<Food />);
-    
-    // Should show loading spinner
-    expect(screen.getByRole('status', { hidden: true })).toBeInTheDocument();
-  });
-
-  test('handles empty search results', async () => {
-    // Mock empty results
-    axios.get.mockImplementation((url) => {
-      if (url.includes('/api/food/items')) {
-        return Promise.resolve({ data: { items: [] } });
-      }
-      return Promise.resolve({ data: {} });
-    });
-    
-    renderWithProviders(<Food />);
-    
-    await waitFor(() => {
-      expect(screen.getByText('No food items found')).toBeInTheDocument();
+      expect(screen.getByTestId('meal-builder')).toBeInTheDocument();
     });
   });
 
@@ -217,64 +166,8 @@ describe('Food Page', () => {
     
     // Check for proper heading structure
     expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
-    
-    // Check for proper input labels
-    const searchInput = screen.getByPlaceholderText('Search for food items...');
-    expect(searchInput).toHaveAttribute('aria-label');
-    
-    // Check for proper button labels
-    const buttons = screen.getAllByRole('button');
-    buttons.forEach(button => {
-      expect(button).toHaveAttribute('aria-label');
-    });
-  });
-
-  test('displays nutrition information correctly', async () => {
-    renderWithProviders(<Food />);
-    
-    await waitFor(() => {
-      // Check for nutrition labels
-      expect(screen.getByText('Calories')).toBeInTheDocument();
-      expect(screen.getByText('Protein')).toBeInTheDocument();
-      expect(screen.getByText('Carbs')).toBeInTheDocument();
-      expect(screen.getByText('Fat')).toBeInTheDocument();
-    });
-  });
-
-  test('handles pagination', async () => {
-    // Mock paginated results
-    const paginatedItems = Array.from({ length: 20 }, (_, i) => ({
-      id: i.toString(),
-      name: `Food Item ${i}`,
-      brand: 'Generic',
-      barcode: `${i}23456789`,
-      nutrition: {
-        calories: 50 + i,
-        protein: 1 + i,
-        carbs: 10 + i,
-        fat: 0.5 + i
-      }
-    }));
-    
-    axios.get.mockImplementation((url) => {
-      if (url.includes('/api/food/items')) {
-        return Promise.resolve({ 
-          data: { 
-            items: paginatedItems,
-            totalPages: 2,
-            currentPage: 1
-          } 
-        });
-      }
-      return Promise.resolve({ data: {} });
-    });
-    
-    renderWithProviders(<Food />);
-    
-    await waitFor(() => {
-      // Check for pagination controls
-      expect(screen.getByText('Next')).toBeInTheDocument();
-      expect(screen.getByText('Previous')).toBeInTheDocument();
-    });
   });
 });
+
+
+

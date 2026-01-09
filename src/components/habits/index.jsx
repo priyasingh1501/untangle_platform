@@ -1,1 +1,1 @@
-export { default as CreateHabitPopup } from './CreateHabitPopup.js';
+export { default as CreateHabitPopup } from './CreateHabitPopup.jsx';
