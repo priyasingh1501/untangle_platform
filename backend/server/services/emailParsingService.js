@@ -7,82 +7,23 @@ try {
 }
 
 const { simpleParser } = require('mailparser');
-const fs = require('fs');
-const path = require('path');
 const { OpenAI } = require('openai');
 
 class EmailParsingService {
   constructor() {
-    this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY
-    });
-  }
-
-  /**
-   * Connect to IMAP server and fetch emails
-   */
-  async fetchEmails(imapConfig) {
-    if (!Imap) {
-      throw new Error('IMAP module not available. Email fetching is disabled.');
-    }
-
-    return new Promise((resolve, reject) => {
-      const imap = new Imap({
-        host: imapConfig.host,
-        port: imapConfig.port,
-        tls: imapConfig.secure,
-        user: imapConfig.username,
-        password: imapConfig.password
-      });
-
-      imap.once('ready', () => {
-        imap.openBox('INBOX', false, (err, box) => {
-          if (err) {
-            reject(err);
-            return;
-          }
-
-          const emails = [];
-          const fetch = imap.seq.fetch('1:*', {
-            bodies: '',
-            struct: true
-          });
-
-          fetch.on('message', (msg, seqno) => {
-            let buffer = '';
-            
-            msg.on('body', (stream) => {
-              stream.on('data', (chunk) => {
-                buffer += chunk.toString('utf8');
-              });
-              
-              stream.once('end', () => {
-                simpleParser(buffer, (err, parsed) => {
-                  if (!err) {
-                    emails.push(parsed);
-                  }
-                });
-              });
-            });
-          });
-
-          fetch.once('error', (err) => {
-            reject(err);
-          });
-
-          fetch.once('end', () => {
-            imap.end();
-            resolve(emails);
-          });
+    // Only initialize OpenAI if API key is available
+    if (process.env.OPENAI_API_KEY) {
+      try {
+        this.openai = new OpenAI({
+          apiKey: process.env.OPENAI_API_KEY
         });
-      });
-
-      imap.once('error', (err) => {
-        reject(err);
-      });
-
-      imap.connect();
-    });
+      } catch (error) {
+        console.warn('OpenAI not available:', error.message);
+        this.openai = null;
+      }
+    } else {
+      this.openai = null;
+    }
   }
 
   /**
@@ -109,7 +50,7 @@ class EmailParsingService {
         subject.toLowerCase().includes(keyword)
       );
 
-      if (!hasExpenseKeywords && attachments.length === 0) {
+      if (!hasExpenseKeywords && (!attachments || attachments.length === 0)) {
         return null; // Not an expense-related email
       }
 
@@ -121,18 +62,25 @@ class EmailParsingService {
       if (attachments && attachments.length > 0) {
         for (const attachment of attachments) {
           if (this.isImageOrPdf(attachment.contentType)) {
-            const base64Data = attachment.content.toString('base64');
-            attachmentData.push({
-              filename: attachment.filename,
-              contentType: attachment.contentType,
-              data: base64Data
-            });
+            const base64Data = attachment.content ? attachment.content.toString('base64') : null;
+            if (base64Data) {
+              attachmentData.push({
+                filename: attachment.filename,
+                contentType: attachment.contentType,
+                data: base64Data
+              });
+            }
           }
         }
       }
 
-      // Use OpenAI to extract expense data
-      const extractedData = await this.extractExpenseDataWithAI(contentToAnalyze, attachmentData, emailData);
+      // Use OpenAI to extract expense data if available, otherwise use fallback
+      let extractedData;
+      if (this.openai) {
+        extractedData = await this.extractExpenseDataWithAI(contentToAnalyze, attachmentData, emailData);
+      } else {
+        extractedData = this.extractExpenseDataFallback(emailText, subject, emailData);
+      }
       
       return {
         ...extractedData,
@@ -147,7 +95,7 @@ class EmailParsingService {
 
     } catch (error) {
       console.error('Error parsing email for expense:', error);
-      throw error;
+      return this.getFallbackExpenseData();
     }
   }
 
@@ -157,7 +105,7 @@ class EmailParsingService {
   extractTextFromHtml(html) {
     if (!html) return '';
     
-    // Simple HTML tag removal (you might want to use a proper HTML parser)
+    // Simple HTML tag removal
     return html
       .replace(/<[^>]*>/g, ' ')
       .replace(/\s+/g, ' ')
@@ -168,7 +116,7 @@ class EmailParsingService {
    * Check if attachment is image or PDF
    */
   isImageOrPdf(contentType) {
-    return contentType.startsWith('image/') || contentType === 'application/pdf';
+    return contentType && (contentType.startsWith('image/') || contentType === 'application/pdf');
   }
 
   /**
@@ -182,7 +130,7 @@ class EmailParsingService {
           content: [
             {
               type: "text",
-              text: `Analyze this email for expense information and extract the following data in JSON format. This could be from any vendor (Amazon, Uber, Starbucks, restaurants, online stores, etc.) with different email formats:
+              text: `Analyze this email for expense information and extract the following data in JSON format:
 
               {
                 "amount": "total amount (number only, null if not found)",
@@ -191,21 +139,13 @@ class EmailParsingService {
                 "category": "expense category (food, transportation, housing, utilities, healthcare, entertainment, shopping, education, travel, insurance, taxes, debt, other)",
                 "date": "expense date if found (YYYY-MM-DD format, null if not found)",
                 "paymentMethod": "payment method if mentioned (cash, credit-card, debit-card, bank-transfer, digital-wallet, other)",
-                "confidence": "confidence level (high, medium, low) based on how clear the information is"
+                "confidence": "confidence level (high, medium, low)"
               }
               
               Email content:
               ${emailContent}
               
-              IMPORTANT INSTRUCTIONS:
-              1. Look for amounts in various formats: ₹450, $25.99, USD 50, INR 1000, etc.
-              2. Extract vendor names from sender addresses, company names, or merchant mentions
-              3. Identify what was purchased from item descriptions, order details, or receipt content
-              4. Determine category based on vendor type and purchase items
-              5. Look for dates in various formats: "Jan 15, 2024", "15/01/2024", "2024-01-15", etc.
-              6. Handle different languages and currencies
-              7. If information is unclear or missing, use null for that field
-              8. Set confidence to "low" if you're unsure about any extracted data`
+              IMPORTANT: Return only valid JSON, no other text.`
             }
           ]
         }
@@ -213,7 +153,7 @@ class EmailParsingService {
 
       // Add attachment images to the analysis if any
       for (const attachment of attachments) {
-        if (attachment.contentType.startsWith('image/')) {
+        if (attachment.contentType && attachment.contentType.startsWith('image/')) {
           messages[0].content.push({
             type: "image_url",
             image_url: {
@@ -226,7 +166,8 @@ class EmailParsingService {
       const response = await this.openai.chat.completions.create({
         model: "gpt-4o",
         messages,
-        max_tokens: 500
+        max_tokens: 500,
+        temperature: 0.1
       });
 
       const analysisText = response.choices[0].message.content;
@@ -242,7 +183,7 @@ class EmailParsingService {
         }
       } catch (parseError) {
         console.error('Error parsing OpenAI response:', parseError);
-        return this.getFallbackExpenseData();
+        return this.extractExpenseDataFallback(emailContent, emailData.subject || '', emailData);
       }
 
       // Validate and clean the extracted data
@@ -256,13 +197,49 @@ class EmailParsingService {
         date: extractedData.date || null,
         paymentMethod: this.validatePaymentMethod(extractedData.paymentMethod),
         confidence: extractedData.confidence || 'low',
-        source: 'email_ai_parsing'
+        needsManualReview: extractedData.confidence === 'low'
       };
 
     } catch (error) {
       console.error('Error in AI expense extraction:', error);
-      return this.getFallbackExpenseData();
+      return this.extractExpenseDataFallback(emailContent, emailData.subject || '', emailData);
     }
+  }
+
+  /**
+   * Fallback expense extraction using regex patterns
+   */
+  extractExpenseDataFallback(emailText, subject, emailData) {
+    // Extract amount
+    const amountRegex = /(?:₹|rs|rupee|inr|usd|\$)\s*(\d+(?:\.\d{2})?)/i;
+    const amountMatch = emailText.match(amountRegex) || subject.match(amountRegex);
+    const amount = amountMatch ? parseFloat(amountMatch[1]) : 0;
+
+    // Extract vendor
+    const vendor = this.extractVendorFromEmail(emailData);
+
+    // Extract date
+    const dateRegex = /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})|(\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2})/;
+    const dateMatch = emailText.match(dateRegex) || subject.match(dateRegex);
+    let date = null;
+    if (dateMatch) {
+      try {
+        date = new Date(dateMatch[0]).toISOString().split('T')[0];
+      } catch (e) {
+        // Invalid date, keep null
+      }
+    }
+
+    return {
+      amount,
+      description: subject || 'Expense from email',
+      vendor,
+      category: 'other',
+      date,
+      paymentMethod: 'other',
+      confidence: amount > 0 ? 'medium' : 'low',
+      needsManualReview: amount === 0
+    };
   }
 
   /**
@@ -308,7 +285,6 @@ class EmailParsingService {
       date: null,
       paymentMethod: 'other',
       confidence: 'low',
-      source: 'email_fallback',
       needsManualReview: true
     };
   }
@@ -318,6 +294,7 @@ class EmailParsingService {
    */
   extractVendorFromEmail(emailData) {
     const { from, subject, text } = emailData;
+    const content = `${subject || ''} ${text || ''}`.toLowerCase();
     
     // Common vendor patterns
     const vendorPatterns = [
@@ -341,9 +318,9 @@ class EmailParsingService {
       { pattern: /rapido/i, vendor: 'Rapido' }
     ];
 
-    // Check sender email domain
+    // Check sender email domain and content
     for (const { pattern, vendor } of vendorPatterns) {
-      if (pattern.test(from) || pattern.test(subject) || pattern.test(text)) {
+      if ((from && pattern.test(from)) || pattern.test(subject) || pattern.test(content)) {
         return vendor;
       }
     }
@@ -356,64 +333,6 @@ class EmailParsingService {
     }
 
     return 'Unknown';
-  }
-
-  /**
-   * Process email attachments for OCR
-   */
-  async processAttachmentsForOCR(attachments) {
-    const results = [];
-    
-    for (const attachment of attachments) {
-      if (this.isImageOrPdf(attachment.contentType)) {
-        try {
-          const ocrResult = await this.performOCR(attachment);
-          results.push({
-            filename: attachment.filename,
-            contentType: attachment.contentType,
-            ocrData: ocrResult
-          });
-        } catch (error) {
-          console.error(`Error processing attachment ${attachment.filename}:`, error);
-        }
-      }
-    }
-    
-    return results;
-  }
-
-  /**
-   * Perform OCR on image/PDF attachment
-   */
-  async performOCR(attachment) {
-    try {
-      const response = await this.openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: "Extract text content from this image/PDF. Focus on finding amounts, dates, merchant names, and item descriptions."
-              },
-              {
-                type: "image_url",
-                image_url: {
-                  url: `data:${attachment.contentType};base64,${attachment.data}`
-                }
-              }
-            ]
-          }
-        ],
-        max_tokens: 1000
-      });
-
-      return response.choices[0].message.content;
-    } catch (error) {
-      console.error('OCR processing failed:', error);
-      return null;
-    }
   }
 }
 

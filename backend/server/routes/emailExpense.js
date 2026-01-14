@@ -1,10 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const { v4: uuidv4 } = require('uuid');
-const mailparser = require('mailparser');
-const simpleParser = mailparser.simpleParser;
-const EmailForwarding = require('../models/EmailForwarding');
 const { Expense } = require('../models/Finance');
 const EmailParsingService = require('../services/emailParsingService');
 const EmailService = require('../services/emailService');
@@ -19,6 +15,7 @@ const upload = multer({
 });
 
 const emailParsingService = new EmailParsingService();
+// Use the class constructor pattern - EmailService is exported as a class
 const emailService = new EmailService();
 
 // Webhook endpoint to receive forwarded emails
@@ -29,8 +26,11 @@ router.post('/webhook', async (req, res) => {
       body: req.body
     });
 
+    // Extract email data from webhook payload
+    const emailData = extractEmailDataFromWebhook(req);
+
     // Use the email service to process the incoming email
-    const result = await emailService.processIncomingEmail(req.body);
+    const result = await emailService.processIncomingEmail(emailData);
 
     if (result.success) {
       res.json({
@@ -54,7 +54,8 @@ router.post('/webhook', async (req, res) => {
 // Get user's forwarding email
 router.get('/forwarding-email', auth, async (req, res) => {
   try {
-    const forwardingEmail = await EmailForwarding.getForwardingEmail(req.user.userId);
+    const EmailForwarding = require('../models/EmailForwarding');
+    const forwardingEmail = await EmailForwarding.getForwardingEmail(req.user._id || req.user.userId);
     res.json({ forwardingEmail });
   } catch (error) {
     console.error('Error getting forwarding email:', error);
@@ -65,7 +66,7 @@ router.get('/forwarding-email', auth, async (req, res) => {
 // Set up email forwarding for user
 router.post('/setup-forwarding', auth, async (req, res) => {
   try {
-    const result = await emailService.setupEmailForwarding(req.user.userId);
+    const result = await emailService.setupEmailForwarding(req.user._id || req.user.userId);
     res.json(result);
   } catch (error) {
     console.error('Error setting up email forwarding:', error);
@@ -76,11 +77,14 @@ router.post('/setup-forwarding', auth, async (req, res) => {
 // Get email forwarding settings
 router.get('/settings', auth, async (req, res) => {
   try {
+    const EmailForwarding = require('../models/EmailForwarding');
+    const userId = req.user._id || req.user.userId;
+    
     // This will automatically create a forwarding email if it doesn't exist
-    const forwardingEmail = await EmailForwarding.getForwardingEmail(req.user.userId);
+    const forwardingEmail = await EmailForwarding.getForwardingEmail(userId);
     
     const forwarding = await EmailForwarding.findOne({ 
-      userId: req.user.userId,
+      userId,
       isActive: true 
     });
 
@@ -106,10 +110,12 @@ router.get('/settings', auth, async (req, res) => {
 // Update email forwarding settings
 router.put('/settings', auth, async (req, res) => {
   try {
+    const EmailForwarding = require('../models/EmailForwarding');
     const { settings } = req.body;
+    const userId = req.user._id || req.user.userId;
     
     const forwarding = await EmailForwarding.findOneAndUpdate(
-      { userId: req.user.userId, isActive: true },
+      { userId, isActive: true },
       { 
         $set: { 
           'settings': settings 
@@ -147,7 +153,7 @@ router.post('/process-email', auth, async (req, res) => {
     }
 
     // Create expense entry
-    const expense = await createExpenseFromEmailData(expenseData, req.user.userId, emailData);
+    const expense = await createExpenseFromEmailData(expenseData, req.user._id || req.user.userId, emailData);
 
     res.json({
       message: 'Email processed successfully',
@@ -167,9 +173,10 @@ router.post('/process-email', auth, async (req, res) => {
 router.get('/email-expenses', auth, async (req, res) => {
   try {
     const { page = 1, limit = 20 } = req.query;
+    const userId = req.user._id || req.user.userId;
     
     const expenses = await Expense.find({ 
-      userId: req.user.userId,
+      userId,
       source: 'email'
     })
     .sort({ createdAt: -1 })
@@ -177,7 +184,7 @@ router.get('/email-expenses', auth, async (req, res) => {
     .skip((page - 1) * limit);
 
     const total = await Expense.countDocuments({ 
-      userId: req.user.userId,
+      userId,
       source: 'email'
     });
 
@@ -199,16 +206,32 @@ router.get('/email-expenses', auth, async (req, res) => {
 // Helper function to extract email data from webhook
 function extractEmailDataFromWebhook(req) {
   // This would depend on your email service provider's webhook format
-  // For now, we'll assume a simple format
-  const { from, to, subject, text, html, attachments } = req.body;
+  // For Mailgun, the format is typically in req.body
+  const { from, to, subject, 'body-plain': text, 'body-html': html, attachments } = req.body;
   
+  // Handle Mailgun webhook format
+  if (req.body['event-data']) {
+    // Mailgun event format
+    const eventData = req.body['event-data'];
+    const messageData = eventData.message || {};
+    return {
+      from: messageData.headers?.from || from,
+      to: messageData.headers?.to || to,
+      subject: messageData.headers?.subject || subject,
+      text: messageData['body-plain'] || text || '',
+      html: messageData['body-html'] || html || '',
+      attachments: attachments || []
+    };
+  }
+  
+  // Standard format
   return {
-    from,
-    to,
-    subject,
-    text,
-    html,
-    attachments: attachments || []
+    from: from || req.body.from,
+    to: to || req.body.to || req.body['envelope-to'],
+    subject: subject || req.body.subject,
+    text: text || req.body.text || req.body['body-plain'] || '',
+    html: html || req.body.html || req.body['body-html'] || '',
+    attachments: attachments || req.body.attachments || []
   };
 }
 

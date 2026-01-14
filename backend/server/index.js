@@ -73,12 +73,55 @@ console.log('🔍 FORCE REBUILD:', 'MONGODB CONNECTION TEST - ' + Math.random().
 const app = express();
 const PORT = appConfig.get('app.port');
 
-// Security middleware (order matters!)
-app.use(helmet(securityConfig.helmet));
-app.use(compression());
-
 // Trust proxy for accurate IP addresses
 app.set('trust proxy', 1);
+
+// CORS configuration - MUST be before other middleware
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = securityConfig.cors.origin;
+    if (Array.isArray(allowedOrigins)) {
+      if (allowedOrigins.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
+        callback(null, true); // Allow all in development
+      }
+    } else {
+      callback(null, true);
+    }
+  },
+  credentials: securityConfig.cors.credentials,
+  optionsSuccessStatus: securityConfig.cors.optionsSuccessStatus,
+  methods: securityConfig.cors.methods,
+  allowedHeaders: [...securityConfig.cors.allowedHeaders, 'X-Session-ID'],
+  exposedHeaders: ['Authorization']
+};
+
+// Handle OPTIONS requests FIRST, before any other middleware
+app.options('*', cors(corsOptions));
+
+// Apply CORS before other middleware
+app.use(cors(corsOptions));
+
+// Security middleware (order matters!)
+// Configure Helmet to not interfere with CORS
+const helmetConfig = {
+  ...securityConfig.helmet,
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  contentSecurityPolicy: {
+    ...securityConfig.helmet.contentSecurityPolicy,
+    directives: {
+      ...securityConfig.helmet.contentSecurityPolicy.directives,
+      connectSrc: ["'self'", "http://localhost:3000", "http://localhost:5000", "https:"]
+    }
+  }
+};
+app.use(helmet(helmetConfig));
+app.use(compression());
 
 // Request logging
 app.use((req, res, next) => {
@@ -89,19 +132,6 @@ app.use((req, res, next) => {
   });
   next();
 });
-
-// CORS configuration
-const corsOptions = {
-  origin: securityConfig.cors.origin,
-  credentials: securityConfig.cors.credentials,
-  optionsSuccessStatus: securityConfig.cors.optionsSuccessStatus,
-  methods: securityConfig.cors.methods,
-  allowedHeaders: securityConfig.cors.allowedHeaders
-};
-
-app.use(cors(corsOptions));
-// Ensure preflight (OPTIONS) requests receive proper CORS headers
-app.options('*', cors(corsOptions));
 
 // Body parsing with size limits
 app.use(express.json({ 
@@ -216,7 +246,6 @@ app.get('/api/server-test', (req, res) => {
     timestamp: new Date().toISOString(),
     hasAuth: true,
     hasFinance: true,
-    hasEmailExpense: true,
     mongodbConnected: mongoose.connection.readyState === 1,
     mongodbState: mongoose.connection.readyState
   });

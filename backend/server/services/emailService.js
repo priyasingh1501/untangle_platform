@@ -196,6 +196,126 @@ class EmailService {
     
     return { success: false, message: 'Email service not configured - check logs for verification link' };
   }
+
+  /**
+   * Process incoming email and create expense
+   */
+  async processIncomingEmail(emailData) {
+    try {
+      const EmailParsingService = require('./emailParsingService');
+      const EmailForwarding = require('../models/EmailForwarding');
+      const { Expense } = require('../models/Finance');
+
+      const emailParsingService = new EmailParsingService();
+      
+      // Parse email for expense data
+      const expenseData = await emailParsingService.parseEmailForExpense(emailData);
+      
+      if (!expenseData || !expenseData.amount || expenseData.amount === 0) {
+        return {
+          success: false,
+          message: 'No expense data found in email'
+        };
+      }
+
+      // Extract userId from forwarding email (format: userId+timestamp@domain.com)
+      const forwardingEmail = emailData.to || emailData['envelope-to'];
+      if (!forwardingEmail) {
+        return {
+          success: false,
+          message: 'No forwarding email found'
+        };
+      }
+
+      // Find user by forwarding email
+      const forwarding = await EmailForwarding.findOne({ 
+        forwardingEmail: forwardingEmail.toLowerCase() 
+      });
+
+      if (!forwarding || !forwarding.isActive) {
+        return {
+          success: false,
+          message: 'Invalid or inactive forwarding email'
+        };
+      }
+
+      // Update forwarding stats
+      forwarding.totalEmailsProcessed += 1;
+      forwarding.lastEmailReceived = new Date();
+
+      // Create expense if auto-parse is enabled or if confidence is high
+      if (forwarding.settings.autoParse || expenseData.confidence === 'high') {
+        const expense = new Expense({
+          userId: forwarding.userId,
+          amount: expenseData.amount,
+          currency: 'INR',
+          category: expenseData.category || forwarding.settings.defaultCategory,
+          description: expenseData.description || 'Expense from email',
+          vendor: expenseData.vendor || 'Unknown',
+          paymentMethod: expenseData.paymentMethod || forwarding.settings.defaultPaymentMethod,
+          date: expenseData.date ? new Date(expenseData.date) : new Date(),
+          notes: `Source: Email - ${emailData.subject || 'No subject'}`,
+          source: 'email',
+          emailData: {
+            subject: emailData.subject,
+            from: emailData.from,
+            confidence: expenseData.confidence,
+            needsManualReview: expenseData.needsManualReview || false
+          },
+          status: (expenseData.needsManualReview || forwarding.settings.requireConfirmation) ? 'pending' : 'completed'
+        });
+
+        await expense.save();
+        forwarding.totalExpensesCreated += 1;
+
+        return {
+          success: true,
+          expenseId: expense._id,
+          expense: expense,
+          message: 'Expense created successfully'
+        };
+      } else {
+        // Save for manual review
+        await forwarding.save();
+        return {
+          success: false,
+          message: 'Email received but auto-parse is disabled. Please review manually.'
+        };
+      }
+    } catch (error) {
+      console.error('Error processing incoming email:', error);
+      return {
+        success: false,
+        message: 'Error processing email',
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Set up email forwarding for a user
+   */
+  async setupEmailForwarding(userId) {
+    try {
+      const EmailForwarding = require('../models/EmailForwarding');
+      
+      // Get or create forwarding email
+      const forwardingEmail = await EmailForwarding.getForwardingEmail(userId);
+      
+      return {
+        success: true,
+        forwardingEmail,
+        message: 'Email forwarding set up successfully'
+      };
+    } catch (error) {
+      console.error('Error setting up email forwarding:', error);
+      return {
+        success: false,
+        message: 'Error setting up email forwarding',
+        error: error.message
+      };
+    }
+  }
 }
 
 // Create singleton instance

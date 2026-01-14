@@ -81,7 +81,8 @@ const emailForwardingSchema = new mongoose.Schema({
 emailForwardingSchema.statics.generateForwardingEmail = function(userId, baseEmail = 'expenses@untangle.app') {
   const timestamp = Date.now().toString(36);
   const randomSuffix = Math.random().toString(36).substring(2, 8);
-  return `${userId.toString().substring(0, 8)}+${timestamp}${randomSuffix}@${baseEmail.split('@')[1]}`;
+  const domain = baseEmail.includes('@') ? baseEmail.split('@')[1] : 'untangle.app';
+  return `${userId.toString().substring(0, 8)}+${timestamp}${randomSuffix}@${domain}`;
 };
 
 // Method to get forwarding email for user
