@@ -201,42 +201,27 @@ class EmailService {
 // Create singleton instance
 const emailServiceInstance = new EmailService();
 
-// Export pattern that supports both use cases:
-// 1. const emailService = require('./emailService') - gets instance (backward compatible)
-// 2. const EmailService = require('./emailService'); new EmailService() - gets class (for emailExpense.js)
-//
-// Create a constructor function that can be called with 'new' or without
-function EmailServiceWrapper(...args) {
-  // If called with 'new', create a new instance
-  if (new.target || this instanceof EmailServiceWrapper) {
-    return new EmailService(...args);
-  }
-  // If called without 'new', return the singleton instance
-  return emailServiceInstance;
-}
+// Export the class as default (for emailExpense.js: const EmailService = require(...); new EmailService())
+// Also attach the singleton instance so existing code works: const emailService = require(...)
+const EmailServiceExport = EmailService;
 
-// Make it work as a constructor by setting up the prototype chain
-EmailServiceWrapper.prototype = EmailService.prototype;
-EmailServiceWrapper.prototype.constructor = EmailServiceWrapper;
-
-// Copy static properties from the class
-Object.setPrototypeOf(EmailServiceWrapper, EmailService);
-
-// Copy instance properties and methods to the wrapper so it can be used as an instance
-for (const key in emailServiceInstance) {
-  if (emailServiceInstance.hasOwnProperty(key)) {
-    EmailServiceWrapper[key] = emailServiceInstance[key];
-  }
-}
-
-// Copy prototype methods so they're available on instances
-Object.getOwnPropertyNames(EmailService.prototype).forEach(name => {
-  if (name !== 'constructor' && typeof EmailService.prototype[name] === 'function') {
-    EmailServiceWrapper.prototype[name] = EmailService.prototype[name];
+// Attach the singleton instance as properties so it can be used directly
+// This allows: const emailService = require('./emailService') to work (backward compatible)
+Object.keys(emailServiceInstance).forEach(key => {
+  if (typeof emailServiceInstance[key] !== 'function') {
+    EmailServiceExport[key] = emailServiceInstance[key];
   }
 });
 
-// Also export the class for destructuring
-EmailServiceWrapper.EmailService = EmailService;
+// Attach instance methods so they can be called directly on the class
+Object.getOwnPropertyNames(EmailService.prototype).forEach(name => {
+  if (name !== 'constructor' && typeof EmailService.prototype[name] === 'function') {
+    EmailServiceExport[name] = EmailService.prototype[name].bind(emailServiceInstance);
+  }
+});
 
-module.exports = EmailServiceWrapper;
+// Also export the instance for explicit access
+EmailServiceExport.getInstance = () => emailServiceInstance;
+EmailServiceExport.instance = emailServiceInstance;
+
+module.exports = EmailServiceExport;
