@@ -10,8 +10,8 @@ import Dashboard from './pages/Dashboard';
 import Finance from './pages/Finance';
 import Journal from './pages/Journal';
 import Content from './pages/Content';
-import GoalAlignedDay from './pages/GoalAlignedDay';
 import Food from './pages/Food';
+import Calendar from './pages/Calendar';
 import AiChat from './pages/AiChat';
 import Profile from './pages/Profile';
 import Login from './pages/Auth/Login';
@@ -167,8 +167,8 @@ function App() {
                 <Route path="finance" element={<Finance />} />
                 <Route path="journal" element={<Journal />} />
                 <Route path="content" element={<Content />} />
-                <Route path="goal-aligned-day" element={<GoalAlignedDay />} />
                 <Route path="food" element={<Food />} />
+                <Route path="calendar" element={<Calendar />} />
                 <Route path="ai-chat" element={<AiChat />} />
                 <Route path="profile" element={<Profile />} />
               </Route>

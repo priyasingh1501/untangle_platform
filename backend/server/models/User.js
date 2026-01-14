@@ -202,6 +202,22 @@ const userSchema = new mongoose.Schema({
   passwordResetExpires: {
     type: Date,
     default: null
+  },
+  // Google Calendar integration
+  googleCalendarTokens: {
+    access_token: String,
+    refresh_token: String,
+    scope: String,
+    token_type: String,
+    expiry_date: Number
+  },
+  googleCalendarConnected: {
+    type: Boolean,
+    default: false
+  },
+  googleCalendarConnectedAt: {
+    type: Date,
+    default: null
   }
 }, {
   timestamps: true

@@ -39,7 +39,6 @@ const journalRoutes = require('./routes/journal');
 const contentRoutes = require('./routes/content');
 const bookDocumentRoutes = require('./routes/bookDocuments');
 const aiChatRoutes = require('./routes/aiChat');
-const goalRoutes = require('./routes/goals');
 const habitRoutes = require('./routes/habits');
 const mindfulnessRoutes = require('./routes/mindfulness');
 const foodRoutes = require('./routes/food');
@@ -49,6 +48,7 @@ const aiQuoteAnalysisRoutes = require('./routes/aiQuoteAnalysis');
 const billingRoutes = require('./routes/billing');
 const tasksRoutes = require('./routes/tasks');
 const emailExpenseRoutes = require('./routes/emailExpense');
+const calendarRoutes = require('./routes/calendar');
 const whatsappRoutes = require('./routes/whatsapp');
 const { loadActiveSessions } = require('./services/whatsappAuthService');
 
@@ -189,7 +189,6 @@ app.use('/api/journal', apiRateLimit, journalRoutes);
 app.use('/api/content', apiRateLimit, contentRoutes);
 app.use('/api/book-documents', apiRateLimit, bookDocumentRoutes);
 app.use('/api/ai-chat', apiRateLimit, aiChatRoutes);
-app.use('/api/goals', apiRateLimit, goalRoutes);
 app.use('/api/habits', apiRateLimit, habitRoutes);
 app.use('/api/mindfulness', apiRateLimit, mindfulnessRoutes);
 app.use('/api/food', apiRateLimit, foodRoutes);
@@ -199,6 +198,7 @@ app.use('/api/ai', apiRateLimit, aiQuoteAnalysisRoutes);
 app.use('/api/billing', apiRateLimit, billingRoutes);
 app.use('/api/tasks', apiRateLimit, tasksRoutes);
 app.use('/api/email-expense', fileUploadRateLimit, emailExpenseRoutes);
+app.use('/api/calendar', apiRateLimit, calendarRoutes);
 app.use('/api/whatsapp', apiRateLimit, whatsappRoutes);
 
 // Root health check endpoint for Railway

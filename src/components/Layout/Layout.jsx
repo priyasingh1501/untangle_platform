@@ -8,13 +8,12 @@ import {
   LogOut,
   Brain,
   Send,
-  Target,
   Utensils,
   Menu,
   ChevronLeft,
   ChevronRight,
   BookOpen,
-  
+  Calendar as CalendarIcon,
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { componentStyles, colors, typography } from '../../styles/designTokens';
@@ -58,10 +57,10 @@ const Layout = () => {
 
   const navigation = [
     { name: 'Overview', href: '/overview', icon: Home },
-    { name: 'Goals', href: '/goal-aligned-day', icon: Target },
     { name: 'Food', href: '/food', icon: Utensils },
     { name: 'Finance', href: '/finance', icon: DollarSign },
     { name: 'Content', href: '/content', icon: Brain },
+    { name: 'Calendar', href: '/calendar', icon: CalendarIcon },
     { name: 'Journal', href: '/journal', icon: BookOpen },
   ];
 
