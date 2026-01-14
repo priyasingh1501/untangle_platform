@@ -8,6 +8,7 @@ const { jwtService, tokenBlacklist, sessionService } = require('../middleware/au
 const TwoFactorService = require('../services/twoFactorService');
 const EncryptionService = require('../services/encryptionService');
 const GDPRService = require('../services/gdprService');
+const emailService = require('../services/emailService');
 const User = require('../models/User');
 const crypto = require('crypto');
 
@@ -53,28 +54,20 @@ router.post('/register',
       const verificationToken = user.generateEmailVerificationToken();
       await user.save();
 
+      // Send email verification email
+      await emailService.sendEmailVerificationEmail(
+        user.email,
+        verificationToken
+      );
+
       // Log successful registration
       securityLogger.logLoginAttempt(email, req.ip, true, req.get('User-Agent'));
 
-      // Generate tokens
-      const tokens = jwtService.generateTokenPair({
-        userId: user._id,
-        email: user.email,
-        role: user.role
-      });
-
-      // Create session
-      const sessionId = crypto.randomUUID();
-      user.addActiveSession(sessionId, req.get('User-Agent'), req.ip);
-      await user.save();
-
+      // Don't generate tokens or create session - user must verify email first
       res.status(201).json({
-        message: 'User registered successfully',
-        user: user.getProfile(),
-        tokens,
-        sessionId,
+        message: 'Registration successful! Please check your email to verify your account.',
         requiresEmailVerification: true,
-        verificationToken // In production, send via email
+        email: user.email
       });
     } catch (error) {
       console.error('Registration error:', error);
@@ -135,6 +128,25 @@ router.post('/login',
         return res.status(401).json({ 
           message: 'Account is deactivated',
           code: 'ACCOUNT_INACTIVE'
+        });
+      }
+
+      // Check if email is verified
+      if (!user.emailVerified) {
+        securityLogger.logFailedLogin(email, req.ip, 'Email not verified', req.get('User-Agent'));
+        return res.status(403).json({ 
+          message: 'Please verify your email address before logging in. Check your inbox for the verification link.',
+          code: 'EMAIL_NOT_VERIFIED',
+          requiresEmailVerification: true
+        });
+      }
+
+      // Validate email format (already validated by middleware, but double-check)
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({
+          message: 'Invalid email format',
+          code: 'INVALID_EMAIL_FORMAT'
         });
       }
 
@@ -570,13 +582,39 @@ router.post('/refresh-token', auth, async (req, res) => {
 // Request password reset
 router.post('/forgot-password',
   passwordResetRateLimit,
+  validate([
+    body('email')
+      .isEmail()
+      .withMessage('Please provide a valid email address')
+      .normalizeEmail()
+  ]),
   async (req, res) => {
     try {
       const { email } = req.body;
 
-      const user = await User.findOne({ email });
+      if (!email) {
+        return res.status(400).json({
+          message: 'Email address is required',
+          code: 'EMAIL_REQUIRED'
+        });
+      }
+
+      const user = await User.findOne({ email: email.toLowerCase().trim() });
       if (!user) {
-        // Don't reveal if user exists
+        // Don't reveal if user exists for security
+        securityLogger.logSuspiciousActivity(
+          'anonymous',
+          'password_reset_attempt_unknown_email',
+          { email },
+          req.ip
+        );
+        return res.json({
+          message: 'If an account with that email exists, a password reset link has been sent'
+        });
+      }
+
+      // Check if account is active
+      if (!user.isActive) {
         return res.json({
           message: 'If an account with that email exists, a password reset link has been sent'
         });
@@ -586,16 +624,28 @@ router.post('/forgot-password',
       const resetToken = user.generatePasswordResetToken();
       await user.save();
 
-      // In production, send email with reset token
-      console.log('Password reset token:', resetToken);
+      // Send password reset email
+      const emailResult = await emailService.sendPasswordResetEmail(
+        user.email,
+        resetToken
+      );
 
+      securityLogger.logPasswordResetRequest(user._id, req.ip, req.get('User-Agent'));
+
+      // Always return success message (don't reveal if email was sent)
       res.json({
         message: 'If an account with that email exists, a password reset link has been sent'
       });
     } catch (error) {
       console.error('Password reset request error:', error);
+      securityLogger.logSuspiciousActivity(
+        'anonymous',
+        'password_reset_error',
+        { error: error.message, email: req.body.email },
+        req.ip
+      );
       res.status(500).json({
-        message: 'Password reset request failed',
+        message: 'Password reset request failed. Please try again later.',
         code: 'PASSWORD_RESET_FAILED'
       });
     }
@@ -605,6 +655,16 @@ router.post('/forgot-password',
 // Reset password
 router.post('/reset-password',
   passwordResetRateLimit,
+  validate([
+    body('token')
+      .notEmpty()
+      .withMessage('Reset token is required'),
+    body('newPassword')
+      .isLength({ min: 8 })
+      .withMessage('Password must be at least 8 characters long')
+      .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
+      .withMessage('Password must include: uppercase letter, lowercase letter, number, and special character')
+  ]),
   async (req, res) => {
     try {
       const { token, newPassword } = req.body;
@@ -625,6 +685,12 @@ router.post('/reset-password',
       });
 
       if (!user) {
+        securityLogger.logSuspiciousActivity(
+          'anonymous',
+          'invalid_password_reset_token',
+          { token: token.substring(0, 10) + '...' },
+          req.ip
+        );
         return res.status(400).json({
           message: 'Invalid or expired reset token',
           code: 'INVALID_RESET_TOKEN'
@@ -647,6 +713,115 @@ router.post('/reset-password',
       res.status(500).json({
         message: 'Password reset failed',
         code: 'PASSWORD_RESET_FAILED'
+      });
+    }
+  }
+);
+
+// Verify email
+router.get('/verify-email',
+  async (req, res) => {
+    try {
+      const { token } = req.query;
+
+      if (!token) {
+        return res.status(400).json({
+          message: 'Verification token is required',
+          code: 'TOKEN_REQUIRED'
+        });
+      }
+
+      // Hash the token to compare with stored hash
+      const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+      const user = await User.findOne({
+        emailVerificationToken: hashedToken,
+        emailVerificationExpires: { $gt: Date.now() }
+      });
+
+      if (!user) {
+        securityLogger.logSuspiciousActivity(
+          'anonymous',
+          'invalid_email_verification_token',
+          { token: token.substring(0, 10) + '...' },
+          req.ip
+        );
+        return res.status(400).json({
+          message: 'Invalid or expired verification token',
+          code: 'INVALID_VERIFICATION_TOKEN'
+        });
+      }
+
+      // Verify email
+      user.verifyEmail();
+      await user.save();
+
+      securityLogger.logSuspiciousActivity(
+        user._id.toString(),
+        'email_verified',
+        { email: user.email },
+        req.ip
+      );
+
+      res.json({
+        message: 'Email verified successfully',
+        verified: true
+      });
+    } catch (error) {
+      console.error('Email verification error:', error);
+      res.status(500).json({
+        message: 'Email verification failed',
+        code: 'VERIFICATION_FAILED'
+      });
+    }
+  }
+);
+
+// Resend verification email
+router.post('/resend-verification',
+  authRateLimit,
+  validate([
+    body('email')
+      .isEmail()
+      .withMessage('Please provide a valid email address')
+      .normalizeEmail()
+  ]),
+  async (req, res) => {
+    try {
+      const { email } = req.body;
+
+      const user = await User.findOne({ email: email.toLowerCase().trim() });
+      if (!user) {
+        // Don't reveal if user exists
+        return res.json({
+          message: 'If an account with that email exists, a verification link has been sent'
+        });
+      }
+
+      if (user.emailVerified) {
+        return res.json({
+          message: 'Email is already verified'
+        });
+      }
+
+      // Generate new verification token
+      const verificationToken = user.generateEmailVerificationToken();
+      await user.save();
+
+      // Send verification email
+      await emailService.sendEmailVerificationEmail(
+        user.email,
+        verificationToken
+      );
+
+      res.json({
+        message: 'If an account with that email exists, a verification link has been sent'
+      });
+    } catch (error) {
+      console.error('Resend verification error:', error);
+      res.status(500).json({
+        message: 'Failed to resend verification email',
+        code: 'RESEND_FAILED'
       });
     }
   }

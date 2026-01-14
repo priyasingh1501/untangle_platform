@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button, Input, Header, Section } from '../../components/ui';
+import { buildApiUrl } from '../../config';
+import axios from 'axios';
+import toast from 'react-hot-toast';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -13,6 +16,10 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
+  const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
+  const [forgotPasswordMessage, setForgotPasswordMessage] = useState('');
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -38,8 +45,14 @@ const Login = () => {
         // Redirect to dashboard
         navigate('/');
       } else {
-        // Handle login failure - show error message
-        setError(result.message || 'Login failed. Please try again.');
+        // Handle login failure - check if email verification is required
+        if (result.requiresEmailVerification) {
+          // Redirect to verification page
+          navigate(`/verify-email?email=${encodeURIComponent(result.email || formData.email)}`);
+        } else {
+          // Show error message
+          setError(result.message || 'Login failed. Please try again.');
+        }
       }
     } catch (error) {
       console.error('Login error:', error);
@@ -171,7 +184,7 @@ const Login = () => {
               <button 
                 type="button"
                 className="font-medium text-[#1E49C9] hover:text-[#1E49C9]/80 transition-colors duration-200"
-                onClick={() => {/* TODO: Implement forgot password */}}
+                onClick={() => setShowForgotPassword(true)}
               >
                 Forgot your password?
               </button>
@@ -202,6 +215,130 @@ const Login = () => {
             </p>
           </div>
         </motion.form>
+
+        {/* Forgot Password Modal */}
+        {showForgotPassword && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setShowForgotPassword(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-background-secondary border border-border-primary rounded-2xl p-6 max-w-md w-full shadow-2xl"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <Header level={3}>Reset Password</Header>
+                <button
+                  onClick={() => {
+                    setShowForgotPassword(false);
+                    setForgotPasswordEmail('');
+                    setForgotPasswordMessage('');
+                  }}
+                  className="text-text-muted hover:text-text-primary transition-colors"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+
+              <p className="text-sm text-text-secondary mb-6">
+                Enter your email address and we'll send you a link to reset your password.
+              </p>
+
+              {forgotPasswordMessage && (
+                <div className={`mb-4 p-4 rounded-lg ${
+                  forgotPasswordMessage.includes('sent') 
+                    ? 'bg-green-500/10 border border-green-500/20' 
+                    : 'bg-red-500/10 border border-red-500/20'
+                }`}>
+                  <p className={`text-sm text-center ${
+                    forgotPasswordMessage.includes('sent') ? 'text-green-400' : 'text-red-400'
+                  }`}>
+                    {forgotPasswordMessage}
+                  </p>
+                </div>
+              )}
+
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (!forgotPasswordEmail) {
+                    setForgotPasswordMessage('Please enter your email address');
+                    return;
+                  }
+
+                  setForgotPasswordLoading(true);
+                  setForgotPasswordMessage('');
+
+                  try {
+                    const response = await axios.post(buildApiUrl('/api/auth/forgot-password'), {
+                      email: forgotPasswordEmail
+                    });
+
+                    setForgotPasswordMessage('If an account with that email exists, a password reset link has been sent.');
+                    toast.success('Password reset email sent!');
+                    setForgotPasswordEmail('');
+                    
+                    // Close modal after 3 seconds
+                    setTimeout(() => {
+                      setShowForgotPassword(false);
+                      setForgotPasswordMessage('');
+                    }, 3000);
+                  } catch (error) {
+                    console.error('Forgot password error:', error);
+                    const errorMessage = error.response?.data?.message || 'Failed to send reset email. Please try again.';
+                    setForgotPasswordMessage(errorMessage);
+                    toast.error(errorMessage);
+                  } finally {
+                    setForgotPasswordLoading(false);
+                  }
+                }}
+                className="space-y-4"
+              >
+                <Input
+                  id="forgot-email"
+                  name="forgot-email"
+                  type="email"
+                  label="Email address"
+                  required
+                  value={forgotPasswordEmail}
+                  onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                  placeholder="Enter your email"
+                  icon={<Mail size={20} className="text-text-muted" />}
+                  disabled={forgotPasswordLoading}
+                />
+
+                <div className="flex gap-3">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => {
+                      setShowForgotPassword(false);
+                      setForgotPasswordEmail('');
+                      setForgotPasswordMessage('');
+                    }}
+                    className="flex-1"
+                    disabled={forgotPasswordLoading}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    className="flex-1"
+                    loading={forgotPasswordLoading}
+                    disabled={forgotPasswordLoading}
+                  >
+                    {forgotPasswordLoading ? 'Sending...' : 'Send Reset Link'}
+                  </Button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
 
         {/* Footer */}
         <motion.div

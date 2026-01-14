@@ -16,6 +16,7 @@ import AiChat from './pages/AiChat';
 import Profile from './pages/Profile';
 import Login from './pages/Auth/Login';
 import Register from './pages/Auth/Register';
+import VerifyEmail from './pages/Auth/VerifyEmail';
 import './index.css';
 
 // Create a client
@@ -146,6 +147,11 @@ function App() {
               <Route path="/register" element={
                 <PublicRoute>
                   <Register />
+                </PublicRoute>
+              } />
+              <Route path="/verify-email" element={
+                <PublicRoute>
+                  <VerifyEmail />
                 </PublicRoute>
               } />
               

@@ -18,6 +18,46 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState(localStorage.getItem('token'));
 
+  const refreshToken = useCallback(async () => {
+    try {
+      const storedRefreshToken = localStorage.getItem('refreshToken');
+      if (!storedRefreshToken) {
+        return { success: false };
+      }
+
+      const response = await axios.post(buildApiUrl('/api/auth/refresh'), {
+        refreshToken: storedRefreshToken
+      });
+      
+      const { tokens } = response.data;
+      const newToken = tokens.accessToken || tokens.token;
+      const newRefreshToken = tokens.refreshToken;
+      
+      if (newToken) {
+        setToken(newToken);
+        localStorage.setItem('token', newToken);
+        if (newRefreshToken) {
+          localStorage.setItem('refreshToken', newRefreshToken);
+        }
+        axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+        return { success: true };
+      }
+      return { success: false };
+    } catch (error) {
+      console.error('Token refresh failed:', error);
+      return { success: false };
+    }
+  }, []);
+
+  const logout = useCallback(() => {
+    setUser(null);
+    setToken(null);
+    localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
+    delete axios.defaults.headers.common['Authorization'];
+    toast.success('Logged out successfully');
+  }, []);
+
   const fetchUserProfile = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
@@ -30,46 +70,46 @@ export const AuthProvider = ({ children }) => {
       console.log('🔍 Fetching profile with token:', token.substring(0, 20) + '...');
       const response = await axios.get(buildApiUrl('/api/auth/profile'));
       setUser(response.data.user);
+      setLoading(false);
     } catch (error) {
       console.error('Error fetching user profile:', error);
       console.error('Error status:', error?.response?.status);
       console.error('Error data:', error?.response?.data);
       
-      // If unauthorized, try to refresh token once before logging out
+      // Only handle 401 errors - network errors shouldn't log users out
       if (error?.response?.status === 401) {
         console.log('🔍 401 error, attempting token refresh...');
-        try {
-          const refreshResult = await refreshToken();
-          if (refreshResult.success) {
-            console.log('🔍 Token refresh successful, retrying profile fetch');
+        const refreshResult = await refreshToken();
+        if (refreshResult.success) {
+          console.log('🔍 Token refresh successful, retrying profile fetch');
+          try {
             const retryResponse = await axios.get(buildApiUrl('/api/auth/profile'));
             setUser(retryResponse.data.user);
-          } else {
-            console.log('🔍 Token refresh failed, logging out');
-            logout();
+          } catch (retryError) {
+            console.error('Profile fetch retry failed:', retryError);
+            // Only logout if retry also fails with 401
+            if (retryError?.response?.status === 401) {
+              logout();
+            }
           }
-        } catch (refreshError) {
-          console.error('Profile fetch: token refresh failed:', refreshError);
+        } else {
+          console.log('🔍 Token refresh failed, logging out');
           logout();
         }
       } else {
-        // For non-401 errors, just log out
-        console.log('🔍 Non-401 error, logging out');
-        logout();
+        // For network errors or other non-auth errors, keep user logged in
+        // Just set loading to false - don't log them out
+        console.log('🔍 Non-auth error, keeping user logged in');
+        // Try to use existing token if available
+        const existingToken = localStorage.getItem('token');
+        if (existingToken) {
+          // Keep the user logged in with existing token
+          // The token might still be valid, just had a network issue
+        }
       }
-    } finally {
       setLoading(false);
     }
-  }, []);
-
-  const logout = useCallback(() => {
-    setUser(null);
-    setToken(null);
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
-    delete axios.defaults.headers.common['Authorization'];
-    toast.success('Logged out successfully');
-  }, []);
+  }, [refreshToken, logout]);
 
   // Configure axios defaults
   useEffect(() => {
@@ -145,6 +185,18 @@ export const AuthProvider = ({ children }) => {
       return { success: true };
     } catch (error) {
       console.error('❌ Login error:', error);
+      
+      // Handle email verification requirement
+      if (error.response?.status === 403 && error.response?.data?.code === 'EMAIL_NOT_VERIFIED') {
+        toast.error('Please verify your email address before logging in.');
+        return { 
+          success: false, 
+          message: error.response?.data?.message || 'Email verification required',
+          requiresEmailVerification: true,
+          email: email
+        };
+      }
+      
       const message = error.response?.data?.message || error.message || 'Login failed';
       toast.error(message);
       return { success: false, message };
@@ -155,17 +207,30 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await axios.post(buildApiUrl('/api/auth/register'), userData);
       
+      // Check if email verification is required
+      if (response.data.requiresEmailVerification) {
+        toast.success('Registration successful! Please check your email to verify your account.');
+        return { 
+          success: true, 
+          requiresEmailVerification: true,
+          email: response.data.email || userData.email
+        };
+      }
+      
+      // If tokens are provided (shouldn't happen with email verification, but handle it)
       const { token: newToken, user: newUser, tokens } = response.data;
       const accessToken = newToken || tokens?.accessToken || tokens?.token;
       const refreshToken = tokens?.refreshToken;
       
-      setToken(accessToken);
-      setUser(newUser);
-      localStorage.setItem('token', accessToken);
-      if (refreshToken) {
-        localStorage.setItem('refreshToken', refreshToken);
+      if (accessToken) {
+        setToken(accessToken);
+        setUser(newUser);
+        localStorage.setItem('token', accessToken);
+        if (refreshToken) {
+          localStorage.setItem('refreshToken', refreshToken);
+        }
+        axios.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
       }
-      axios.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
       
       toast.success('Registration successful!');
       return { success: true };
@@ -202,46 +267,24 @@ export const AuthProvider = ({ children }) => {
   };
 
 
-  const refreshToken = async () => {
-    try {
-      const storedRefreshToken = localStorage.getItem('refreshToken');
-      if (!storedRefreshToken) {
-        logout();
-        return { success: false };
-      }
 
-      const response = await axios.post(buildApiUrl('/api/auth/refresh'), {
-        refreshToken: storedRefreshToken
-      });
-      
-      const { tokens } = response.data;
-      const newToken = tokens.accessToken || tokens.token;
-      const newRefreshToken = tokens.refreshToken;
-      
-      setToken(newToken);
-      localStorage.setItem('token', newToken);
-      if (newRefreshToken) {
-        localStorage.setItem('refreshToken', newRefreshToken);
-      }
-      axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
-      
-      return { success: true };
-    } catch (error) {
-      console.error('Token refresh failed:', error);
-      logout();
-      return { success: false };
-    }
-  };
-
-  // Add axios interceptor for automatic token refresh and security updates
+  // Add axios interceptor for automatic token refresh
   useEffect(() => {
     const interceptor = axios.interceptors.response.use(
       (response) => response,
       async (error) => {
-        if (error.response?.status === 401 && token) {
+        // Only handle 401 errors, and only if we have a token
+        if (error.response?.status === 401) {
+          const currentToken = localStorage.getItem('token');
+          if (!currentToken) {
+            // No token, let the error propagate
+            return Promise.reject(error);
+          }
+
           // Check if this is a security update (token validation error)
           const isSecurityUpdate = error.response?.data?.message?.includes('Invalid access token') ||
-                                   error.response?.data?.code === 'INVALID_TOKEN';
+                                   error.response?.data?.code === 'INVALID_TOKEN' ||
+                                   error.response?.data?.code === 'TOKEN_REVOKED';
           
           if (isSecurityUpdate) {
             // Security update: Clear all auth data and redirect to login
@@ -252,17 +295,26 @@ export const AuthProvider = ({ children }) => {
           }
           
           // Regular token expiration: try to refresh
-          const refreshResult = await refreshToken();
-          if (refreshResult.success) {
-            // Retry the original request with the new token
-            const originalRequest = error.config;
-            const newToken = localStorage.getItem('token');
-            originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
-            return axios(originalRequest);
-          } else {
-            // Refresh failed, logout user
-            logout();
-            toast.error('Session expired. Please log in again.');
+          // Prevent infinite loops by checking if this is already a refresh request
+          const isRefreshRequest = error.config?.url?.includes('/api/auth/refresh');
+          if (!isRefreshRequest) {
+            const refreshResult = await refreshToken();
+            if (refreshResult.success) {
+              // Retry the original request with the new token
+              const originalRequest = error.config;
+              const newToken = localStorage.getItem('token');
+              if (newToken && originalRequest) {
+                originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
+                return axios(originalRequest);
+              }
+            } else {
+              // Refresh failed, logout user only if refresh token is also invalid
+              const refreshTokenExists = localStorage.getItem('refreshToken');
+              if (!refreshTokenExists) {
+                logout();
+                toast.error('Session expired. Please log in again.');
+              }
+            }
           }
         }
         return Promise.reject(error);
@@ -272,7 +324,42 @@ export const AuthProvider = ({ children }) => {
     return () => {
       axios.interceptors.response.eject(interceptor);
     };
-  }, [token, logout, refreshToken]);
+  }, [logout, refreshToken]);
+
+  // Proactive token refresh before expiration
+  useEffect(() => {
+    if (!token) return;
+
+    const checkAndRefreshToken = async () => {
+      try {
+        // Decode token to check expiration
+        const tokenParts = token.split('.');
+        if (tokenParts.length !== 3) return;
+
+        const payload = JSON.parse(atob(tokenParts[1]));
+        const expirationTime = payload.exp * 1000; // Convert to milliseconds
+        const currentTime = Date.now();
+        const timeUntilExpiration = expirationTime - currentTime;
+        
+        // Refresh token if it expires in less than 5 minutes (300000 ms)
+        // This ensures the user stays logged in seamlessly
+        if (timeUntilExpiration > 0 && timeUntilExpiration < 300000) {
+          console.log('🔄 Proactively refreshing token before expiration...');
+          await refreshToken();
+        }
+      } catch (error) {
+        console.error('Error checking token expiration:', error);
+      }
+    };
+
+    // Check immediately
+    checkAndRefreshToken();
+
+    // Check every 5 minutes
+    const interval = setInterval(checkAndRefreshToken, 5 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, [token, refreshToken]);
 
   const value = {
     user,

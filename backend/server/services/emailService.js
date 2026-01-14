@@ -1,186 +1,201 @@
-const sgMail = require('@sendgrid/mail');
-const EmailParsingService = require('./emailParsingService');
-const EmailForwarding = require('../models/EmailForwarding');
-const { Expense } = require('../models/Finance');
+const formData = require('form-data');
+const Mailgun = require('mailgun.js');
+const { logger } = require('../config/logger');
 
 class EmailService {
   constructor() {
-    this.sendgridApiKey = process.env.SENDGRID_API_KEY;
-    this.webhookUrl = process.env.WEBHOOK_URL || 'https://your-domain.com/api/email-expense/webhook';
+    this.mailgun = null;
+    this.isConfigured = false;
+    this.fromEmail = null;
+    this.domain = null;
+    this.initialize();
+  }
+
+  initialize() {
+    // Check if Mailgun API key and domain are configured
+    const mailgunApiKey = process.env.MAILGUN_API_KEY;
+    const mailgunDomain = process.env.MAILGUN_DOMAIN;
+    const smtpFrom = process.env.SMTP_FROM || `noreply@${mailgunDomain || 'untangle.com'}`;
+
+    if (!mailgunApiKey || !mailgunDomain) {
+      console.warn('⚠️ Email service not configured. Set MAILGUN_API_KEY and MAILGUN_DOMAIN environment variables.');
+      console.warn('⚠️ Password reset emails will be logged to console instead.');
+      this.isConfigured = false;
+      this.fromEmail = smtpFrom;
+      return;
+    }
+
+    try {
+      const mailgun = new Mailgun(formData);
+      this.mailgun = mailgun.client({
+        username: 'api',
+        key: mailgunApiKey
+      });
+      this.domain = mailgunDomain;
+      this.fromEmail = smtpFrom;
+      this.isConfigured = true;
+      console.log('✅ Email service (Mailgun) initialized successfully');
+      console.log(`📧 Using domain: ${mailgunDomain}`);
+    } catch (error) {
+      console.error('❌ Failed to initialize email service:', error.message);
+      this.isConfigured = false;
+    }
+  }
+
+  async sendPasswordResetEmail(email, resetToken, resetUrl) {
+    const resetLink = resetUrl || `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
     
-    if (this.sendgridApiKey) {
-      sgMail.setApiKey(this.sendgridApiKey);
+    const messageData = {
+      from: `"Untangle Platform" <${this.fromEmail}>`,
+      to: [email],
+      subject: 'Reset Your Password - Untangle Platform',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Reset Your Password</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background: linear-gradient(135deg, #1E49C9 0%, #3B82F6 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+            <h1 style="color: #FFFFFF; margin: 0;">Untangle Platform</h1>
+          </div>
+          <div style="background: #FFFFFF; padding: 30px; border: 1px solid #E5E7EB; border-top: none; border-radius: 0 0 10px 10px;">
+            <h2 style="color: #1E49C9; margin-top: 0;">Reset Your Password</h2>
+            <p>Hello,</p>
+            <p>We received a request to reset your password for your Untangle Platform account.</p>
+            <p>Click the button below to reset your password. This link will expire in 10 minutes.</p>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${resetLink}" style="background: #1E49C9; color: #FFFFFF; padding: 12px 30px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">Reset Password</a>
+            </div>
+            <p style="color: #6B7280; font-size: 14px;">Or copy and paste this link into your browser:</p>
+            <p style="color: #1E49C9; font-size: 12px; word-break: break-all; background: #F3F4F6; padding: 10px; border-radius: 4px;">${resetLink}</p>
+            <p style="color: #6B7280; font-size: 14px; margin-top: 30px;">If you didn't request a password reset, please ignore this email. Your password will remain unchanged.</p>
+            <hr style="border: none; border-top: 1px solid #E5E7EB; margin: 30px 0;">
+            <p style="color: #9CA3AF; font-size: 12px; margin: 0;">This is an automated message. Please do not reply to this email.</p>
+          </div>
+        </body>
+        </html>
+      `,
+      text: `
+        Reset Your Password - Untangle Platform
+        
+        Hello,
+        
+        We received a request to reset your password for your Untangle Platform account.
+        
+        Click the link below to reset your password. This link will expire in 10 minutes.
+        
+        ${resetLink}
+        
+        If you didn't request a password reset, please ignore this email. Your password will remain unchanged.
+        
+        This is an automated message. Please do not reply to this email.
+      `
+    };
+
+    if (this.isConfigured && this.mailgun) {
+      try {
+        const response = await this.mailgun.messages.create(this.domain, messageData);
+        logger.info(`Password reset email sent to ${email}`, { 
+          messageId: response.id,
+          message: response.message
+        });
+        return { success: true, messageId: response.id };
+      } catch (error) {
+        logger.error(`Failed to send password reset email to ${email}:`, error);
+        // Fall through to console logging
+      }
     }
+
+    // Fallback: Log to console if email service is not configured
+    console.log('\n📧 Password Reset Email (not sent - email service not configured):');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log(`To: ${email}`);
+    console.log(`Subject: Reset Your Password - Untangle Platform`);
+    console.log(`Reset Link: ${resetLink}`);
+    console.log(`Token: ${resetToken}`);
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+    
+    return { success: false, message: 'Email service not configured - check logs for reset link' };
   }
 
-  /**
-   * Set up email forwarding for a user
-   */
-  async setupEmailForwarding(userId) {
-    try {
-      if (!this.sendgridApiKey) {
-        throw new Error('SendGrid API key not configured');
+  async sendEmailVerificationEmail(email, verificationToken, verificationUrl) {
+    const verifyLink = verificationUrl || `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email?token=${verificationToken}`;
+    
+    const messageData = {
+      from: `"Untangle Platform" <${this.fromEmail}>`,
+      to: [email],
+      subject: 'Verify Your Email - Untangle Platform',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Verify Your Email</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background: linear-gradient(135deg, #1E49C9 0%, #3B82F6 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+            <h1 style="color: #FFFFFF; margin: 0;">Untangle Platform</h1>
+          </div>
+          <div style="background: #FFFFFF; padding: 30px; border: 1px solid #E5E7EB; border-top: none; border-radius: 0 0 10px 10px;">
+            <h2 style="color: #1E49C9; margin-top: 0;">Verify Your Email Address</h2>
+            <p>Hello,</p>
+            <p>Thank you for signing up for Untangle Platform!</p>
+            <p>Please verify your email address by clicking the button below. This link will expire in 24 hours.</p>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${verifyLink}" style="background: #1E49C9; color: #FFFFFF; padding: 12px 30px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">Verify Email</a>
+            </div>
+            <p style="color: #6B7280; font-size: 14px;">Or copy and paste this link into your browser:</p>
+            <p style="color: #1E49C9; font-size: 12px; word-break: break-all; background: #F3F4F6; padding: 10px; border-radius: 4px;">${verifyLink}</p>
+            <hr style="border: none; border-top: 1px solid #E5E7EB; margin: 30px 0;">
+            <p style="color: #9CA3AF; font-size: 12px; margin: 0;">This is an automated message. Please do not reply to this email.</p>
+          </div>
+        </body>
+        </html>
+      `,
+      text: `
+        Verify Your Email - Untangle Platform
+        
+        Hello,
+        
+        Thank you for signing up for Untangle Platform!
+        
+        Please verify your email address by clicking the link below. This link will expire in 24 hours.
+        
+        ${verifyLink}
+        
+        This is an automated message. Please do not reply to this email.
+      `
+    };
+
+    if (this.isConfigured && this.mailgun) {
+      try {
+        const response = await this.mailgun.messages.create(this.domain, messageData);
+        logger.info(`Email verification sent to ${email}`, { 
+          messageId: response.id,
+          message: response.message
+        });
+        return { success: true, messageId: response.id };
+      } catch (error) {
+        logger.error(`Failed to send email verification to ${email}:`, error);
+        // Fall through to console logging
       }
-
-      // Get or create forwarding email
-      const forwardingEmail = await EmailForwarding.getForwardingEmail(userId);
-      
-      // Set up SendGrid inbound parse webhook
-      const webhookData = {
-        url: this.webhookUrl,
-        hostname: 'untangle.app', // Your domain
-        spam_check: false,
-        send_raw: true
-      };
-
-      // This would typically be done through SendGrid dashboard or API
-      console.log('📧 Email forwarding setup needed:', {
-        userId,
-        forwardingEmail,
-        webhookUrl: this.webhookUrl,
-        instructions: 'Configure SendGrid inbound parse webhook in dashboard'
-      });
-
-      return {
-        forwardingEmail,
-        webhookUrl: this.webhookUrl,
-        status: 'pending_setup'
-      };
-
-    } catch (error) {
-      console.error('Error setting up email forwarding:', error);
-      throw error;
     }
-  }
 
-  /**
-   * Process incoming email from webhook
-   */
-  async processIncomingEmail(emailData) {
-    try {
-      console.log('📧 Processing incoming email:', {
-        from: emailData.from,
-        to: emailData.to,
-        subject: emailData.subject
-      });
-
-      // Find the user by forwarding email
-      const forwarding = await EmailForwarding.findOne({ 
-        forwardingEmail: emailData.to,
-        isActive: true 
-      });
-
-      if (!forwarding) {
-        console.log('❌ No active forwarding found for email:', emailData.to);
-        return { success: false, message: 'Forwarding email not found' };
-      }
-
-      // Process the incoming email
-      await forwarding.processIncomingEmail(emailData);
-
-      // Parse email for expense data
-      const emailParsingService = new EmailParsingService();
-      const expenseData = await emailParsingService.parseEmailForExpense(emailData);
-      
-      if (!expenseData) {
-        console.log('ℹ️ Email does not contain expense information');
-        return { success: true, message: 'Email processed but no expense data found' };
-      }
-
-      // Create expense entry
-      const expense = await this.createExpenseFromEmailData(expenseData, forwarding.userId, emailData);
-
-      // Update forwarding stats
-      forwarding.totalExpensesCreated += 1;
-      await forwarding.save();
-
-      console.log('✅ Expense created from email:', {
-        expenseId: expense._id,
-        userId: forwarding.userId,
-        amount: expense.amount,
-        vendor: expense.vendor
-      });
-
-      return {
-        success: true,
-        expenseId: expense._id,
-        expense: expense
-      };
-
-    } catch (error) {
-      console.error('Error processing incoming email:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Create expense from email data
-   */
-  async createExpenseFromEmailData(expenseData, userId, emailData) {
-    const expense = new Expense({
-      userId,
-      amount: expenseData.amount,
-      currency: 'INR',
-      category: expenseData.category || 'other',
-      description: expenseData.description || 'Expense from email',
-      vendor: expenseData.vendor || 'Unknown',
-      paymentMethod: expenseData.paymentMethod || 'other',
-      date: expenseData.date ? new Date(expenseData.date) : new Date(),
-      notes: `Source: Email - ${emailData.subject}`,
-      source: 'email',
-      emailData: {
-        subject: emailData.subject,
-        from: emailData.from,
-        confidence: expenseData.confidence,
-        needsManualReview: expenseData.needsManualReview || false
-      },
-      status: expenseData.needsManualReview ? 'pending' : 'completed'
-    });
-
-    await expense.save();
-    return expense;
-  }
-
-  /**
-   * Extract email data from webhook payload
-   */
-  extractEmailDataFromWebhook(req) {
-    try {
-      // Handle SendGrid webhook format
-      if (req.body && req.body.from && req.body.to) {
-        return {
-          from: req.body.from,
-          to: req.body.to,
-          subject: req.body.subject || '',
-          text: req.body.text || '',
-          html: req.body.html || '',
-          attachments: req.body.attachments || []
-        };
-      }
-
-      // Handle generic webhook format
-      const { from, to, subject, text, html, attachments } = req.body;
-      
-      if (!from || !to) {
-        return null;
-      }
-
-      return {
-        from,
-        to,
-        subject: subject || '',
-        text: text || '',
-        html: html || '',
-        attachments: attachments || []
-      };
-
-    } catch (error) {
-      console.error('Error extracting email data:', error);
-      return null;
-    }
+    // Fallback: Log to console if email service is not configured
+    console.log('\n📧 Email Verification (not sent - email service not configured):');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log(`To: ${email}`);
+    console.log(`Subject: Verify Your Email - Untangle Platform`);
+    console.log(`Verification Link: ${verifyLink}`);
+    console.log(`Token: ${verificationToken}`);
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+    
+    return { success: false, message: 'Email service not configured - check logs for verification link' };
   }
 }
 
-module.exports = EmailService;
-
-
+module.exports = new EmailService();

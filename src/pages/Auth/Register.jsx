@@ -87,8 +87,14 @@ const Register = () => {
       });
       
       if (result.success) {
-        // Redirect to dashboard
-        navigate('/');
+        // Check if email verification is required
+        if (result.requiresEmailVerification) {
+          // Redirect to verification page
+          navigate(`/verify-email?email=${encodeURIComponent(result.email || formData.email)}`);
+        } else {
+          // Redirect to dashboard (shouldn't happen with email verification)
+          navigate('/');
+        }
       } else {
         // Handle registration failure - show error message
         setErrors({ general: result.message || 'Registration failed. Please try again.' });
